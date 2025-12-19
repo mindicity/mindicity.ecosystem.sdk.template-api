@@ -370,10 +370,9 @@ export class AnalyticsService {
 
 **CRITICAL:** All raw SQL queries MUST include:
 
-1. **Justification Comment**: Explain why QueryBuilder cannot be used
-2. **Code Review Approval**: Raw SQL requires explicit approval from senior developer
-3. **Performance Testing**: Complex queries must include performance benchmarks
-4. **Security Review**: All raw SQL must be reviewed for injection vulnerabilities
+1. **Code Review Approval**: Raw SQL requires explicit approval from senior developer
+2. **Performance Testing**: Complex queries must include performance benchmarks
+3. **Security Review**: All raw SQL must be reviewed for injection vulnerabilities
 
 #### Violation Examples (FORBIDDEN)
 
@@ -418,8 +417,7 @@ async findUsersPaginated(page: number, limit: number): Promise<UserData[]> {
 1. Identify all raw SQL queries in services
 2. Categorize as "simple" (must migrate) or "complex" (can remain)
 3. Migrate simple queries to SqlQueryBuilder in phases
-4. Add justification comments to remaining raw SQL
-5. Update code review checklist to enforce these rules
+4. Update code review checklist to enforce these rules
 
 ## Testing Requirements
 
