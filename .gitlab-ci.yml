@@ -1,0 +1,300 @@
+stages:
+  - libs
+  - test
+  - lint
+  - quality
+  - build
+  - tag-and-push
+  - cleanup
+
+variables:
+  PLUGIN_NAME: $PLUGIN_NAME
+  DOCKER_IMAGE_NAME: $DOCKER_IMAGE_NAME
+  DOCKERFILE_NODE_BASE_IMAGE: $DOCKERFILE_NODE_BASE_IMAGE
+  GITLAB_TOKEN: $GITLAB_API_CORE_ENGINE_TOKEN
+  GITLAB_HOSTNAME: $GITLAB_HOSTNAME
+  HARBOR_HOSTNAME: $HARBOR_HOSTNAME
+  SONAR_DOCKER_IMAGE: $SONAR_DOCKER_IMAGE
+  BUILDAH_DOCKER_IMAGE: $BUILDAH_DOCKER_IMAGE
+  MINIO_ACCESS_KEY: $MINIO_ACCESS_KEY 
+  MINIO_SECRET_KEY: $MINIO_SECRET_KEY
+  MINIO_HOSTNAME: $MINIO_HOSTNAME
+
+.global_cache_node_mods: &global_cache_node_mods
+  key: $PLUGIN_NAME-$CI_PIPELINE_ID
+  paths:
+    - ./
+  policy: pull
+
+.buildah_template: &buildah_template
+  image: $BUILDAH_DOCKER_IMAGE
+  before_script:
+    # Configure registry authentication for Harbor (both for pulling base images and pushing)
+    - echo "$HARBOR_PASSWORD" | buildah login --username "$HARBOR_USERNAME" --password-stdin "$HARBOR_HOSTNAME"
+  script:
+    - >
+      buildah build
+      --format docker
+      --build-arg DOCKERFILE_NODE_BASE_IMAGE="$DOCKERFILE_NODE_BASE_IMAGE"
+      --tag "$IMAGE_TAG"
+      --file "$CI_PROJECT_DIR/Dockerfile"
+      "$CI_PROJECT_DIR"
+    # Push the image to Harbor
+    - buildah push "$IMAGE_TAG"
+  after_script:
+    # Clean up to save space
+    - buildah logout "$HARBOR_HOSTNAME" || true
+    - buildah rmi --all || true
+
+install-libraries:
+  tags:
+    - mindicity-be
+  image: $DOCKERFILE_NODE_BASE_IMAGE
+  stage: libs
+  cache:
+    - <<: *global_cache_node_mods
+      policy: pull-push
+      when: on_success
+  only:
+    - develop
+    - /^feature\/*/
+    - /([\d+\.]*)(\d)(-\d+)$/
+    - /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+  except:
+    - /^release\/*/
+    - /^hotfix\/*/
+  script:
+    - npm ci --cache .npm --prefer-offline
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - runner_system_failure
+
+test-unit:
+  tags:
+    - mindicity-be
+  image: $DOCKERFILE_NODE_BASE_IMAGE
+  stage: test
+  needs:
+   - job: install-libraries
+     optional: false
+     artifacts: false
+  cache:
+    - <<: *global_cache_node_mods
+  only:
+    - develop
+    - /^feature\/*/
+    - /([\d+\.]*)(\d)(-\d+)(?:-beta(\d+))?$/
+    - /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+  except:
+    - /^release\/*/
+    - /^hotfix\/*/
+  script:
+    - npm run test
+  artifacts:
+    when: always
+    paths:
+      - test/coverage/**/*.*
+    expire_in: 1 day
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: test.coverage/cobertura-coverage.xml
+  allow_failure: true
+
+ts-lint:
+    tags:
+        - mindicity-be
+    image: $DOCKERFILE_NODE_BASE_IMAGE
+    stage: lint
+    needs:
+        - job: install-libraries
+          optional: false
+          artifacts: false
+    cache:
+        - <<: *global_cache_node_mods
+    only:
+        - develop
+        - /^feature\/*/
+        - /([\d+\.]*)(\d)(-\d+)(?:-beta(\d+))?$/
+        - /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+    except:
+        - /^release\/*/
+        - /^hotfix\/*/
+    script:
+        - npm run lint
+        - npm run lint:report
+    artifacts:
+        paths:
+            - eslint-report.json
+        expire_in: 1 day
+        when: always
+    allow_failure: true
+
+sonarqube-master-job:
+    tags:
+        - mindicity-be
+    image: $SONAR_DOCKER_IMAGE
+    stage: quality
+    needs:
+        - job: install-libraries
+          optional: false
+          artifacts: false
+        - job: ts-lint
+          optional: false
+          artifacts: true
+        - job: test-unit
+          optional: true
+          artifacts: true
+    only:
+        - develop
+        - /^feature\/*/
+        - /([\d+\.]*)(\d)(-\d+)(?:-beta(\d+))?$/
+        - /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+    script:
+        - >
+          sonar-scanner
+          -Dsonar.host.url=$SONAR_HOST
+          -Dsonar.login=$SONAR_LOGIN
+          -Dsonar.projectKey=$CI_PROJECT_NAME
+          -Dsonar.projectName=$CI_PROJECT_NAME 
+          -Dsonar.projectVersion=$CI_COMMIT_TAG
+          -Dsonar.gitlab.project_id=$CI_PROJECT_PATH
+          -Dsonar.gitlab.commit_sha=$CI_COMMIT_SHA
+          -Dsonar.gitlab.ref_name=$CI_COMMIT_REF_NAME
+          -Dproject.settings=sonar-project.properties
+    allow_failure: true
+    retry:
+        max: 2
+        when:
+            - runner_system_failure
+
+builder:
+  tags:
+    - mindicity-be
+  image: $DOCKERFILE_NODE_BASE_IMAGE
+  stage: build
+  needs:
+    - job: install-libraries
+      optional: false
+      artifacts: false
+    - job: test-unit
+      optional: true
+      artifacts: false
+    - job: ts-lint
+      optional: false
+      artifacts: false
+  cache:
+    - <<: *global_cache_node_mods
+  only:
+    - develop
+    - /^feature\/*/
+    - /([\d+\.]*)(\d)(-\d+)(?:-beta(\d+))?$/
+    - /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+  except:
+    - /^release\/*/
+    - /^hotfix\/*/
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist
+    expire_in: 1 day
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+
+# Development environment
+tag-and-push-dev:
+  <<: *buildah_template
+  tags:
+    - mindicity-be
+  stage: tag-and-push
+  needs:
+    - job: install-libraries
+      optional: false
+    - job: test-unit
+      optional: true
+    - job: ts-lint
+      optional: false
+    - job: builder
+      optional: false
+  cache:
+    - <<: *global_cache_node_mods
+  environment:
+    name: dev
+    url: https://dev.mindicity.it/
+  only:
+    - develop
+  variables:    
+    HARBOR_HOSTNAME: $HARBOR_DEV_HOSTNAME
+    HARBOR_USERNAME: $HARBOR_DEV_USERNAME
+    HARBOR_PASSWORD: $HARBOR_DEV_PASSWORD
+    IMAGE_TAG: $HARBOR_DEV_REGISTRY/$DOCKER_IMAGE_NAME:$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA
+
+# Production environment
+tag-and-push-prod:
+  <<: *buildah_template
+  tags:
+    - mindicity-be
+  stage: tag-and-push
+  needs:
+    - job: install-libraries
+      optional: false
+    - job: test-unit
+      optional: true
+    - job: ts-lint
+      optional: false
+    - job: builder
+      optional: false
+  cache: 
+    - <<: *global_cache_node_mods
+  environment:
+    name: prod
+    url: https://prod.mindicity.it/
+  only:
+    - /(^\d)([\d+\.]*)(\d)$/
+    - /(^\d)([\d+\.]*)(\d)(-\d+)$/
+  except:
+    - branches
+  variables:    
+    HARBOR_HOSTNAME: $HARBOR_HOSTNAME
+    HARBOR_USERNAME: $HARBOR_USERNAME
+    HARBOR_PASSWORD: $HARBOR_PASSWORD
+    IMAGE_TAG: $HARBOR_REGISTRY/$DOCKER_IMAGE_NAME:$CI_COMMIT_TAG
+
+cleanup-job:
+  tags:
+    - mindicity-be
+  stage: cleanup
+  needs:
+    - job: install-libraries
+      optional: false
+    - job: test-unit
+      optional: true
+    - job: ts-lint
+      optional: true
+    - job: builder
+      optional: true
+    - job: tag-and-push-dev
+      optional: true
+    - job: tag-and-push-prod
+      optional: true
+  cache:
+    # clear cache
+    key: $PLUGIN_NAME-$CI_PIPELINE_ID
+    policy: push
+    paths: []
+  only:
+    - develop
+    - /^feature\/*/
+    - /([\d+\.]*)(\d)(-\d+)$/
+    - /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+  except:
+    - /^release\/*/
+    - /^hotfix\/*/
+  script:
+    - echo "Cache cleared successfully"
+  when: always

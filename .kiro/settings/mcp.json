@@ -1,0 +1,69 @@
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "env": {},
+      "disabled": true,
+      "autoApprove": []
+    },
+    "web-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@brave/brave-search-mcp-server",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "your-api-key"
+      },
+      "disabled": true,
+      "autoApprove": []
+    },
+    "Context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {},
+      "disabled": false,
+      "autoApprove": [
+        "get-library-docs",
+        "resolve-library-id"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ],
+      "autoApprove": [
+        "browser_navigate",
+        "browser_click",
+        "browser_type",
+        "browser_snapshot",
+        "browser_take_screenshot",
+        "browser_close",
+        "browser_press_key",
+        "browser_wait_for",
+        "browser_console_messages",
+        "browser_run_code"
+      ]
+    },
+    "figma": {
+      "type": "sse",
+      "url": "https://mcp.figma.com/mcp",
+      "disabled": false,
+      "autoApprove": [
+        "get_design_context"
+      ]
+    }
+  },
+  "powers": {
+    "mcpServers": {}
+  }
+}
