@@ -517,7 +517,7 @@ constructor(loggerService: ContextLoggerService) {
 
 #### Service Layer Logging
 - **trace**: Method entry/exit (`this.logger.trace('methodName()', { param })`)
-- **debug**: Business logic steps with correlation ID (NOT infrastructure operations)
+- **debug**: Business logic steps with full context
 - **error**: Exceptions with full context (`{ err: error, correlationId }`)
 
 #### Infrastructure Layer Logging (CENTRALIZED)
