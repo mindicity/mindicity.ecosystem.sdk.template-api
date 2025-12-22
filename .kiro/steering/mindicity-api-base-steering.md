@@ -917,6 +917,889 @@ export class UserService {
 }
 ```
 
+## MCP (Model Context Protocol) Integration
+
+**CRITICAL REQUIREMENT:** Every new API module MUST be integrated with MCP by adding corresponding tools that expose the module's functionality to AI agents.
+
+### MCP Architecture Overview
+
+The MCP integration provides AI agents with structured access to API functionality through:
+- **Tools**: Specific actions that agents can perform (one tool per endpoint/intention)
+- **Resources**: Dynamic data sources that agents can read
+- **Multiple Transports**: HTTP, SSE, and STDIO support for different use cases
+
+### MCP Integration Rules
+
+#### 1. One Tool Per Endpoint/Intention (MANDATORY)
+
+**CRITICAL:** Each API endpoint must have a corresponding MCP tool with a specific, clear intention.
+
+```typescript
+// ✅ CORRECT: Specific, intention-based tools
+const tools = [
+  'get_api_health',           // GET /health - Check API health status
+  'get_users_list',           // GET /users - Retrieve list of users
+  'create_user',              // POST /users - Create a new user
+  'get_user_by_id',          // GET /users/:id - Get specific user
+  'update_user',             // PUT /users/:id - Update user data
+  'delete_user',             // DELETE /users/:id - Remove user
+  'search_users_by_email',   // GET /users/search?email= - Find users by email
+];
+
+// ❌ WRONG: Generic or unclear tools
+const badTools = [
+  'api_call',                // Too generic
+  'user_operations',         // Multiple intentions
+  'database_query',          // Infrastructure-level, not business logic
+];
+```
+
+#### 2. Use Services, Not Direct Logic (MANDATORY)
+
+**CRITICAL:** MCP tools MUST delegate to existing service methods, never implement business logic directly.
+
+```typescript
+// ✅ CORRECT: Delegate to service
+this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  switch (name) {
+    case 'get_users_list': {
+      // Delegate to existing service method
+      const users = await this.userService.findAll(args);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(users) }],
+      };
+    }
+    
+    case 'create_user': {
+      // Validate and delegate to service
+      const userData = this.validateUserData(args);
+      const newUser = await this.userService.create(userData);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(newUser) }],
+      };
+    }
+  }
+});
+
+// ❌ WRONG: Implement logic in MCP handler
+this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  
+  switch (name) {
+    case 'get_users_list': {
+      // ❌ Don't implement database queries here
+      const sql = 'SELECT * FROM users WHERE status = $1';
+      const users = await this.databaseService.queryMany(sql, ['active']);
+      return { content: [{ type: 'text', text: JSON.stringify(users) }] };
+    }
+  }
+});
+```
+
+#### 3. Transport Dependencies Pattern (MANDATORY)
+
+**CRITICAL:** All transports (HTTP, SSE) that need business logic access MUST use the dependency injection pattern.
+
+```typescript
+// ✅ CORRECT: Transport Dependencies Pattern
+// src/infrastructure/mcp/transports/transport-dependencies.ts
+export interface TransportDependencies {
+  healthService: HealthService;
+  userService?: UserService;        // Add new services here
+  orderService?: OrderService;      // Add new services here
+  // Future services can be added without breaking existing code
+}
+
+export function createTransportDependencies(deps: {
+  healthService: HealthService;
+  userService?: UserService;
+  orderService?: OrderService;
+}): TransportDependencies {
+  // Validate required dependencies
+  if (!deps.healthService) {
+    throw new Error('HealthService is required for MCP transports');
+  }
+  
+  return deps;
+}
+
+// Transport Factory Integration
+export class TransportFactory {
+  static createTransport(
+    config: McpConfig,
+    dependencies: TransportDependencies  // Inject dependencies
+  ): McpTransport {
+    switch (config.transport) {
+      case 'http':
+        return new HttpTransport(config, dependencies);
+      case 'sse':
+        return new SseTransport(config, dependencies);
+      case 'stdio':
+        return new StdioTransport(config);
+      default:
+        throw new Error(`Unsupported transport: ${config.transport}`);
+    }
+  }
+}
+```
+
+#### 4. MCP Server Service Integration (MANDATORY)
+
+**CRITICAL:** When adding new modules, update the MCP server service to include the new service dependencies.
+
+```typescript
+// src/infrastructure/mcp/mcp-server.service.ts
+@Injectable()
+export class McpServerService implements OnModuleInit, OnModuleDestroy {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly healthService: HealthService,
+    // ✅ ADD: Inject new services here
+    private readonly userService: UserService,
+    private readonly orderService: OrderService,
+    loggerService: ContextLoggerService,
+  ) {
+    this.logger = loggerService.child({ serviceContext: McpServerService.name });
+    this.logger.setContext(McpServerService.name);
+    this.mcpConfig = this.configService.get<McpConfig>('mcp');
+  }
+
+  private async startMcpServer(): Promise<void> {
+    try {
+      // ✅ CREATE: Dependencies with all services
+      const dependencies = createTransportDependencies({
+        healthService: this.healthService,
+        userService: this.userService,      // Add new services
+        orderService: this.orderService,    // Add new services
+      });
+
+      // Create transport with dependencies
+      this.transport = TransportFactory.createTransport(this.mcpConfig, dependencies);
+      
+      // Setup tool handlers for all modules
+      this.setupToolHandlers();
+      
+      await this.transport.connect(this.server);
+    } catch (error) {
+      this.logger.error('failed to start MCP server', { err: error });
+      throw error;
+    }
+  }
+
+  private setupToolHandlers(): void {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+      
+      this.logger.trace('MCP tool called', { toolName: name, args });
+
+      try {
+        switch (name) {
+          // Health module tools
+          case 'get_api_health':
+            return await this.handleGetApiHealth();
+          
+          // ✅ ADD: User module tools
+          case 'get_users_list':
+            return await this.handleGetUsersList(args);
+          case 'create_user':
+            return await this.handleCreateUser(args);
+          case 'get_user_by_id':
+            return await this.handleGetUserById(args);
+          
+          // ✅ ADD: Order module tools
+          case 'get_orders_list':
+            return await this.handleGetOrdersList(args);
+          case 'create_order':
+            return await this.handleCreateOrder(args);
+          
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+      } catch (error) {
+        this.logger.error('MCP tool execution failed', { 
+          toolName: name, 
+          err: error 
+        });
+        throw error;
+      }
+    });
+  }
+
+  // ✅ ADD: Tool handler methods for each module
+  private async handleGetUsersList(args: any): Promise<CallToolResult> {
+    const users = await this.userService.findAll(args);
+    return {
+      content: [{ 
+        type: 'text', 
+        text: JSON.stringify(users, null, 2) 
+      }],
+    };
+  }
+
+  private async handleCreateUser(args: any): Promise<CallToolResult> {
+    const newUser = await this.userService.create(args);
+    return {
+      content: [{ 
+        type: 'text', 
+        text: JSON.stringify(newUser, null, 2) 
+      }],
+    };
+  }
+
+  private async handleGetUserById(args: any): Promise<CallToolResult> {
+    const { id } = args;
+    const user = await this.userService.findOne(id);
+    return {
+      content: [{ 
+        type: 'text', 
+        text: JSON.stringify(user, null, 2) 
+      }],
+    };
+  }
+}
+```
+
+#### 5. Tool Registration Pattern (MANDATORY)
+
+**CRITICAL:** All tools must be properly registered with descriptive schemas for AI agents.
+
+```typescript
+// Setup tool list handler
+this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: [
+      // Health module tools
+      {
+        name: 'get_api_health',
+        description: 'Get the current health status of the API server',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      
+      // ✅ ADD: User module tools
+      {
+        name: 'get_users_list',
+        description: 'Retrieve a list of users with optional filtering and pagination',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            page: { type: 'number', description: 'Page number for pagination' },
+            limit: { type: 'number', description: 'Number of items per page' },
+            search: { type: 'string', description: 'Search term for filtering users' },
+            status: { type: 'string', enum: ['active', 'inactive'], description: 'Filter by user status' },
+          },
+          required: [],
+        },
+      },
+      {
+        name: 'create_user',
+        description: 'Create a new user account',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Full name of the user' },
+            email: { type: 'string', format: 'email', description: 'Email address' },
+            role: { type: 'string', enum: ['admin', 'user'], description: 'User role' },
+          },
+          required: ['name', 'email'],
+        },
+      },
+      {
+        name: 'get_user_by_id',
+        description: 'Retrieve a specific user by their ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', description: 'Unique user identifier' },
+          },
+          required: ['id'],
+        },
+      },
+      
+      // ✅ ADD: Order module tools (example)
+      {
+        name: 'get_orders_list',
+        description: 'Retrieve a list of orders with optional filtering',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string', description: 'Filter orders by user ID' },
+            status: { type: 'string', enum: ['pending', 'completed', 'cancelled'], description: 'Filter by order status' },
+            fromDate: { type: 'string', format: 'date', description: 'Filter orders from this date' },
+          },
+          required: [],
+        },
+      },
+    ],
+  };
+});
+```
+
+#### 6. Module Integration Checklist (MANDATORY)
+
+When adding a new module to the API, follow this checklist for MCP integration:
+
+**Service Integration:**
+- [ ] Add service to `TransportDependencies` interface
+- [ ] Update `createTransportDependencies` function
+- [ ] Inject service in `McpServerService` constructor
+- [ ] Pass service to `createTransportDependencies` call
+
+**Tool Implementation:**
+- [ ] Define one tool per endpoint/intention with clear naming
+- [ ] Add tool cases to `setupToolHandlers` switch statement
+- [ ] Implement handler methods that delegate to service methods
+- [ ] Add comprehensive tool descriptions to `ListToolsRequestSchema`
+
+**Transport Support:**
+- [ ] Ensure HTTP transport can access the service via dependencies
+- [ ] Ensure SSE transport can access the service via dependencies
+- [ ] Test all transports with the new tools
+
+**Documentation:**
+- [ ] Update MCP documentation with new tools
+- [ ] Add examples of tool usage
+- [ ] Document input/output schemas
+
+#### 7. MCP Tool Naming Conventions (MANDATORY)
+
+**CRITICAL:** Follow consistent naming patterns for MCP tools:
+
+```typescript
+// ✅ CORRECT: Clear, intention-based naming
+const toolNamingPatterns = {
+  // Pattern: {action}_{module}_{entity}[_{qualifier}]
+  'get_users_list',           // GET /users
+  'get_user_by_id',          // GET /users/:id
+  'create_user',             // POST /users
+  'update_user',             // PUT /users/:id
+  'delete_user',             // DELETE /users/:id
+  'search_users_by_email',   // GET /users/search?email=
+  
+  'get_orders_list',         // GET /orders
+  'get_order_by_id',        // GET /orders/:id
+  'create_order',           // POST /orders
+  'update_order_status',    // PUT /orders/:id/status
+  'cancel_order',           // POST /orders/:id/cancel
+  
+  'get_api_health',         // GET /health
+  'get_api_metrics',        // GET /metrics
+};
+
+// ❌ WRONG: Unclear or inconsistent naming
+const badNaming = {
+  'users',                  // Missing action
+  'getUserData',            // camelCase instead of snake_case
+  'user-list',              // kebab-case instead of snake_case
+  'api_call',               // Too generic
+  'database_query',         // Infrastructure-level
+};
+```
+
+#### 8. Error Handling in MCP Tools (MANDATORY)
+
+**CRITICAL:** All MCP tools must handle errors consistently and provide meaningful feedback to AI agents.
+
+```typescript
+private async handleCreateUser(args: any): Promise<CallToolResult> {
+  try {
+    // Validate input
+    if (!args.name || !args.email) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            error: 'Validation failed',
+            message: 'Name and email are required fields',
+            code: 'VALIDATION_ERROR'
+          }, null, 2)
+        }],
+        isError: true,
+      };
+    }
+
+    // Delegate to service
+    const newUser = await this.userService.create(args);
+    
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          data: newUser,
+          message: 'User created successfully'
+        }, null, 2)
+      }],
+    };
+  } catch (error) {
+    this.logger.error('failed to create user via MCP', { 
+      args, 
+      err: error 
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          error: 'Internal server error',
+          message: error.message,
+          code: 'INTERNAL_ERROR'
+        }, null, 2)
+      }],
+      isError: true,
+    };
+  }
+}
+```
+
+### MCP Testing Requirements
+
+**CRITICAL:** All MCP integrations must include comprehensive testing:
+
+```typescript
+// E2E MCP Tests
+describe('MCP Integration (e2e)', () => {
+  it('should handle get_users_list tool', async () => {
+    const response = await mcpClient.callTool('get_users_list', {
+      page: 1,
+      limit: 10
+    });
+    
+    expect(response.content[0].text).toContain('users');
+    expect(JSON.parse(response.content[0].text)).toHaveProperty('data');
+  });
+
+  it('should handle create_user tool', async () => {
+    const response = await mcpClient.callTool('create_user', {
+      name: 'Test User',
+      email: 'test@example.com'
+    });
+    
+    const result = JSON.parse(response.content[0].text);
+    expect(result.success).toBe(true);
+    expect(result.data).toHaveProperty('id');
+  });
+});
+```
+
+## MCP (Model Context Protocol) Integration
+
+**CRITICAL:** All Mindicity APIs MUST implement MCP integration following these mandatory patterns for AI agent connectivity.
+
+### MCP Architecture Rules
+
+**MANDATORY PATTERNS:**
+1. **One Tool Per Endpoint:** Each MCP tool maps to exactly one specific business intention
+2. **Service Delegation:** MCP tools MUST delegate to existing services, never replicate business logic
+3. **Multi-Transport Support:** All tools MUST work identically across HTTP, SSE, and STDIO transports
+4. **Centralized Configuration:** All MCP settings managed through environment variables and validation
+5. **Infrastructure Isolation:** MCP implementation isolated in `src/infrastructure/mcp/`
+
+### MCP Module Structure
+
+**Required MCP Infrastructure Layout:**
+```
+src/infrastructure/mcp/
+├── mcp.module.ts                    # NestJS module for MCP
+├── mcp-server.service.ts            # Core MCP server logic
+├── mcp-server.service.spec.ts       # MCP server tests
+├── transports/                      # Transport implementations
+│   ├── transport-factory.ts         # Transport creation factory
+│   ├── transport-dependencies.ts    # Dependency injection helper
+│   ├── stdio-transport.ts           # STDIO transport (CLI/terminal)
+│   ├── http-transport.ts            # HTTP transport (REST API)
+│   ├── sse-transport.ts             # SSE transport (Server-Sent Events)
+│   └── *.spec.ts                    # Transport tests
+src/config/
+├── mcp.config.ts                    # MCP configuration schema
+└── mcp-validation.integration.spec.ts # MCP config validation tests
+```
+
+### MCP Configuration Pattern
+
+**Environment Variables (MANDATORY):**
+```bash
+# MCP Server Configuration
+MCP_ENABLED=true                     # Enable/disable MCP server
+MCP_TRANSPORT=sse                    # Transport type: stdio|http|sse
+MCP_HOST=localhost                   # Host for HTTP/SSE transports
+MCP_PORT=3235                        # Port for HTTP/SSE transports
+MCP_SERVER_NAME=your-api-name        # Server name for MCP identification
+MCP_SERVER_VERSION=1.0.0             # Server version
+```
+
+**Configuration Schema (src/config/mcp.config.ts):**
+```typescript
+import { z } from 'zod';
+import { EnvUtil } from '../common/utils/env.util';
+
+const McpConfigSchema = z.object({
+  enabled: z.boolean(),
+  transport: z.enum(['stdio', 'http', 'sse']),
+  host: z.string().min(1).optional(),
+  port: z.number().min(1).max(65535).optional(),
+  serverName: z.string().min(1),
+  serverVersion: z.string().min(1),
+});
+
+export type McpConfig = z.infer<typeof McpConfigSchema>;
+
+export const mcpConfig = (): McpConfig => {
+  const config = {
+    enabled: EnvUtil.parseBoolean(process.env.MCP_ENABLED, true),
+    transport: EnvUtil.parseEnum(process.env.MCP_TRANSPORT, ['stdio', 'http', 'sse'], 'stdio'),
+    host: EnvUtil.parseString(process.env.MCP_HOST, 'localhost'),
+    port: EnvUtil.parseNumber(process.env.MCP_PORT, 3235),
+    serverName: EnvUtil.parseString(process.env.MCP_SERVER_NAME, process.env.npm_package_name, 'nestjs-api'),
+    serverVersion: EnvUtil.parseString(process.env.MCP_SERVER_VERSION, process.env.npm_package_version, '1.0.0'),
+  };
+
+  // Validation with detailed error messages
+  const result = McpConfigSchema.safeParse(config);
+  if (!result.success) {
+    const errorMessages = result.error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+    console.error(`❌ MCP Configuration validation failed: ${errorMessages}`);
+    throw new Error(`Invalid MCP configuration: ${errorMessages}`);
+  }
+
+  return result.data;
+};
+```
+
+### MCP Tool Implementation Pattern
+
+**CRITICAL RULE:** Each MCP tool MUST delegate to existing services and follow this exact pattern:
+
+```typescript
+// In mcp-server.service.ts
+@Injectable()
+export class McpServerService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger: ContextLoggerService;
+  private server: Server | null = null;
+  private transport: McpTransport | null = null;
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly healthService: HealthService, // Inject business services
+    loggerService: ContextLoggerService,
+  ) {
+    this.logger = loggerService.child({ serviceContext: McpServerService.name });
+  }
+
+  private setupDynamicHandlers(): void {
+    // ✅ CORRECT: One tool per business intention
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+      
+      switch (name) {
+        case 'get_api_health':
+          return await this.handleGetApiHealth(args);
+        case 'get_api_detailed_health':
+          return await this.handleGetDetailedApiHealth(args);
+        // Add more tools here - each delegates to a service method
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+    });
+  }
+
+  // ✅ CORRECT: Delegate to service, add MCP-specific formatting only
+  private async handleGetApiHealth(args: unknown): Promise<CallToolResult> {
+    this.logger.trace('MCP tool: get_api_health', { args });
+    
+    try {
+      // Delegate to existing service - NO business logic duplication
+      const healthData = await this.healthService.getSimpleHealthStatus();
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `API Health Status: ${healthData.status}\nServer: ${healthData.server}\nVersion: ${healthData.version}\nTimestamp: ${healthData.timestamp}`,
+          },
+        ],
+      };
+    } catch (error) {
+      this.logger.error('MCP tool get_api_health failed', { err: error });
+      throw error;
+    }
+  }
+
+  private async handleGetDetailedApiHealth(args: unknown): Promise<CallToolResult> {
+    this.logger.trace('MCP tool: get_api_detailed_health', { args });
+    
+    try {
+      // Delegate to existing service method
+      const healthData = await this.healthService.getHealthStatus();
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(healthData, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      this.logger.error('MCP tool get_api_detailed_health failed', { err: error });
+      throw error;
+    }
+  }
+}
+```
+
+### MCP Transport Factory Pattern
+
+**MANDATORY:** All transports MUST be created through the factory with dependency injection:
+
+```typescript
+// transport-dependencies.ts
+export interface TransportDependencies {
+  healthService: HealthService;
+  // Add other services as needed
+}
+
+export function createTransportDependencies(services: {
+  healthService: HealthService;
+  // Add other services here
+}): TransportDependencies {
+  if (!services.healthService) {
+    throw new Error('HealthService is required for MCP transports');
+  }
+  
+  return {
+    healthService: services.healthService,
+  };
+}
+
+// transport-factory.ts
+export class TransportFactory {
+  static createTransport(
+    config: McpConfig,
+    dependencies: TransportDependencies,
+    logger: ContextLoggerService,
+  ): McpTransport {
+    switch (config.transport) {
+      case 'stdio':
+        return new StdioTransport(config, logger);
+      case 'http':
+        if (!config.host || !config.port) {
+          throw new Error('HTTP transport requires host and port configuration');
+        }
+        return new HttpTransport(config, dependencies, logger);
+      case 'sse':
+        if (!config.host || !config.port) {
+          throw new Error('SSE transport requires host and port configuration');
+        }
+        return new SseTransport(config, dependencies, logger);
+      default:
+        throw new Error(`Unsupported transport type: ${config.transport}`);
+    }
+  }
+}
+```
+
+### MCP Transport Implementation Rules
+
+**CRITICAL:** All transports MUST implement the same interface and provide identical functionality:
+
+```typescript
+// Base transport interface
+export interface McpTransport {
+  connect(server: Server): Promise<void>;
+  disconnect(): Promise<void>;
+  getTransportInfo(): TransportInfo;
+}
+
+// HTTP Transport Pattern
+export class HttpTransport implements McpTransport {
+  constructor(
+    private readonly config: McpConfig,
+    private readonly dependencies: TransportDependencies,
+    private readonly logger: ContextLoggerService,
+  ) {}
+
+  async connect(server: Server): Promise<void> {
+    // ✅ CORRECT: Store server reference for request handling
+    this.server = server;
+    
+    // Create HTTP server with request routing
+    this.httpServer = createServer((req, res) => {
+      this.handleRequest(req, res);
+    });
+    
+    // Listen on configured port
+    await new Promise<void>((resolve, reject) => {
+      this.httpServer.listen(this.config.port, this.config.host, resolve);
+      this.httpServer.on('error', reject);
+    });
+  }
+
+  private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // ✅ CORRECT: Route MCP requests to server.request()
+    if (req.method === 'POST' && req.url === '/mcp') {
+      const body = await this.readRequestBody(req);
+      const mcpRequest = JSON.parse(body);
+      
+      // Delegate to MCP server for processing
+      const response = await this.server.request(mcpRequest);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(response));
+    }
+  }
+}
+
+// SSE Transport Pattern  
+export class SseTransport implements McpTransport {
+  private clients = new Set<ServerResponse>();
+
+  async connect(server: Server): Promise<void> {
+    this.server = server;
+    
+    // ✅ CORRECT: Same routing logic as HTTP, plus SSE event streaming
+    this.httpServer = createServer((req, res) => {
+      if (req.url === '/mcp/events') {
+        this.handleSseConnection(req, res);
+      } else if (req.method === 'POST' && req.url === '/mcp') {
+        this.handleMcpRequest(req, res);
+      }
+    });
+  }
+
+  private handleSseConnection(req: IncomingMessage, res: ServerResponse): void {
+    // ✅ CORRECT: Standard SSE headers and connection management
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    this.clients.add(res);
+    
+    // Send initial connection event
+    res.write('event: connected\ndata: {"status":"connected"}\n\n');
+    
+    req.on('close', () => {
+      this.clients.delete(res);
+    });
+  }
+}
+```
+
+### MCP Module Integration
+
+**MANDATORY:** MCP module MUST be imported in AppModule with proper dependency injection:
+
+```typescript
+// mcp.module.ts
+@Module({
+  imports: [ConfigModule], // For MCP configuration
+  providers: [
+    McpServerService,
+    ContextLoggerService,
+  ],
+  exports: [McpServerService],
+})
+export class McpModule {}
+
+// app.module.ts
+@Module({
+  imports: [
+    // ... other modules
+    McpModule, // ✅ CORRECT: Import MCP module
+  ],
+  // ... rest of module configuration
+})
+export class AppModule {}
+```
+
+### MCP Testing Requirements
+
+**MANDATORY:** All MCP components MUST have comprehensive tests:
+
+```typescript
+// mcp-server.service.spec.ts
+describe('McpServerService', () => {
+  let service: McpServerService;
+  let healthService: HealthService;
+
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      providers: [
+        McpServerService,
+        { provide: HealthService, useValue: { getSimpleHealthStatus: jest.fn() } },
+        { provide: ContextLoggerService, useValue: mockLogger },
+      ],
+    }).compile();
+
+    service = module.get(McpServerService);
+    healthService = module.get(HealthService);
+  });
+
+  it('should delegate get_api_health to HealthService', async () => {
+    const mockHealth = { status: 'healthy', server: 'test', version: '1.0.0' };
+    jest.spyOn(healthService, 'getSimpleHealthStatus').mockResolvedValue(mockHealth);
+
+    const result = await service['handleGetApiHealth']({});
+    
+    expect(healthService.getSimpleHealthStatus).toHaveBeenCalled();
+    expect(result.content[0].text).toContain('healthy');
+  });
+});
+
+// E2E tests for each transport
+describe('MCP E2E Tests', () => {
+  it('should handle MCP requests via HTTP transport', async () => {
+    // Test HTTP transport functionality
+  });
+
+  it('should handle MCP requests via SSE transport', async () => {
+    // Test SSE transport functionality  
+  });
+
+  it('should handle MCP requests via STDIO transport', async () => {
+    // Test STDIO transport functionality
+  });
+});
+```
+
+### MCP Development Checklist
+
+**MCP Implementation:**
+- [ ] MCP module created in `src/infrastructure/mcp/`
+- [ ] Configuration schema with validation in `src/config/mcp.config.ts`
+- [ ] Environment variables documented and validated
+- [ ] Transport factory with dependency injection
+- [ ] All three transports implemented (STDIO, HTTP, SSE)
+- [ ] Each MCP tool delegates to existing service methods
+- [ ] No business logic duplication in MCP layer
+- [ ] Comprehensive logging with correlation IDs
+- [ ] Unit tests for all MCP components (>80% coverage)
+- [ ] E2E tests for all transport types
+- [ ] Integration tests for configuration validation
+
+**MCP Tool Design:**
+- [ ] One tool per specific business intention
+- [ ] Tools delegate to existing services, never replicate logic
+- [ ] Consistent tool behavior across all transports
+- [ ] Proper error handling and logging
+- [ ] Input validation using existing DTOs/interfaces
+- [ ] Output formatting appropriate for AI agents
+
+**MCP Documentation:**
+- [ ] MCP integration documented in `docs/mcp-integration.md`
+- [ ] Transport examples in `docs/mcp-transport-examples.md`
+- [ ] Resource documentation in `docs/mcp-resources.md`
+- [ ] Test scripts in `scripts/mcp/` directory
+- [ ] Environment variable documentation updated
+
 ## Module Creation Checklist
 
 **PREREQUISITE:** 
@@ -932,6 +1815,20 @@ export class UserService {
 - [ ] Controller: DTOs only, `@ApiBearerAuth()` for docs, no auth guards
 - [ ] Service: Interfaces only, child logger setup, `ContextUtil` usage
 - [ ] Module: Import infrastructure modules (DatabaseModule, etc.)
+
+**MCP Integration (MANDATORY):**
+- [ ] Add service to `TransportDependencies` interface in `transport-dependencies.ts`
+- [ ] Update `createTransportDependencies` function to include new service
+- [ ] Inject service in `McpServerService` constructor
+- [ ] Pass service to `createTransportDependencies` call in `startMcpServer`
+- [ ] Define one MCP tool per endpoint/intention with clear snake_case naming
+- [ ] Add tool cases to `setupToolHandlers` switch statement
+- [ ] Implement handler methods that delegate to service methods (no direct logic)
+- [ ] Add comprehensive tool descriptions to `ListToolsRequestSchema` handler
+- [ ] Ensure HTTP and SSE transports can access service via dependencies
+- [ ] Test all MCP tools with different transports (HTTP, SSE, STDIO)
+- [ ] Add MCP E2E tests for all new tools
+- [ ] Update MCP documentation with new tools and examples
 
 **Code Quality:**
 - [ ] ESLint configuration applied with all production-ready rules
@@ -959,8 +1856,10 @@ export class UserService {
 **Testing:**
 - [ ] Unit tests >80% coverage with mocked dependencies
 - [ ] E2E tests for all endpoints
+- [ ] MCP E2E tests for all tools
 - [ ] Follow AAA pattern (Arrange, Act, Assert)
 
 **Documentation:**
 - [ ] JSDoc on public methods with `@param`, `@returns`, `@throws`
 - [ ] Swagger decorators: `@ApiOperation`, `@ApiResponse`
+- [ ] MCP tool documentation with input/output examples
