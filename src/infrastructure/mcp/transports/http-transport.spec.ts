@@ -426,8 +426,8 @@ describe('HttpTransport', () => {
         result: {
           resources: [
             {
-              uri: 'swagger://docs/project/swagger/specs',
-              name: 'API Swagger Specification',
+              uri: 'doc://openapi',
+              name: 'API OpenAPI Specification',
               description: 'Complete OpenAPI/Swagger specification for the API endpoints',
               mimeType: 'application/json',
             },
@@ -458,14 +458,15 @@ describe('HttpTransport', () => {
 
       await (customTransport as any).handleMcpRequest(request, mockTransport);
 
+      // Resources should be the same regardless of apiScopePrefix (semantic URIs)
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 6,
         result: {
           resources: [
             {
-              uri: 'swagger://docs/custom-api/swagger/specs',
-              name: 'API Swagger Specification',
+              uri: 'doc://openapi',
+              name: 'API OpenAPI Specification',
               description: 'Complete OpenAPI/Swagger specification for the API endpoints',
               mimeType: 'application/json',
             },
@@ -474,58 +475,22 @@ describe('HttpTransport', () => {
       });
     });
 
-    it('should handle resources/list method with empty apiScopePrefix', async () => {
-      // Create transport with empty apiScopePrefix
-      const emptyAppConfig = {
-        apiPrefix: '/mcapi',
-        apiScopePrefix: '',
-        swaggerHostname: 'http://localhost:3232',
-        port: 3232,
-      };
-      
-      const emptyDependencies = createTransportDependencies({
-        healthService: mockHealthService,
-        appConfig: emptyAppConfig,
-      });
-      
-      const emptyTransport = new HttpTransport(config, emptyDependencies);
-      (emptyTransport as any).mcpServer = mockMcpServer;
-
-      const request = { method: 'resources/list', id: 6 };
-      const mockTransport = { send: jest.fn(), close: jest.fn() };
-
-      await (emptyTransport as any).handleMcpRequest(request, mockTransport);
-
-      expect(mockTransport.send).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        id: 6,
-        result: {
-          resources: [
-            {
-              uri: 'swagger://docs/swagger/specs',
-              name: 'API Swagger Specification',
-              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-              mimeType: 'application/json',
-            },
-          ],
-        },
-      });
-    });
-
-    it('should handle resources/read method with swagger URI', async () => {
+    it('should handle resources/read method with doc://openapi URI', async () => {
       const request = { 
         method: 'resources/read', 
         id: 7,
-        params: { uri: 'swagger://docs/project/swagger/specs' }
+        params: { uri: 'doc://openapi' }
       };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
       (transport as any).mcpServer = mockMcpServer;
 
-      // Mock the fetchRealSwaggerResource method
-      (transport as any).fetchRealSwaggerResource = jest.fn().mockImplementation(
-        async (uri: string, transport: { send: (response: unknown) => void }): Promise<void> => {
+      // Mock the fetchOpenApiResource method
+      (transport as any).fetchOpenApiResource = jest.fn().mockImplementation(
+        async (uri: string, id: unknown, transport: { send: (response: unknown) => void }): Promise<void> => {
           transport.send({
+            jsonrpc: '2.0',
+            id,
             result: {
               contents: [
                 {
@@ -541,7 +506,7 @@ describe('HttpTransport', () => {
 
       await (transport as any).handleMcpRequest(request, mockTransport);
 
-      expect((transport as any).fetchRealSwaggerResource).toHaveBeenCalled();
+      expect((transport as any).fetchOpenApiResource).toHaveBeenCalledWith('doc://openapi', 7, expect.any(Object));
     });
 
     it('should handle resources/read method with unknown URI', async () => {
@@ -562,15 +527,20 @@ describe('HttpTransport', () => {
         error: {
           code: -32601,
           message: 'Unknown resource URI: unknown://resource',
+          data: {
+            supportedSchemes: ['doc://'],
+            availableResources: ['doc://openapi'],
+          },
         },
       });
     });
   });
 
-  describe('fetchRealSwaggerResource', () => {
-    it('should fetch swagger content from file system', async () => {
+  describe('fetchOpenApiResource', () => {
+    it('should fetch openapi content from file system', async () => {
       const mockTransport = { send: jest.fn() };
-      const uri = 'swagger://docs/project/swagger/specs';
+      const uri = 'doc://openapi';
+      const id = 123;
 
       // Mock fs module
       const mockFs = {
@@ -585,11 +555,13 @@ describe('HttpTransport', () => {
       jest.doMock('fs', () => mockFs);
       jest.doMock('path', () => mockPath);
 
-      await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
+      await (transport as any).fetchOpenApiResource(uri, id, mockTransport);
 
       expect(mockFs.existsSync).toHaveBeenCalledWith('/path/to/openapi.json');
       expect(mockFs.readFileSync).toHaveBeenCalledWith('/path/to/openapi.json', 'utf8');
       expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id,
         result: {
           contents: [
             {
@@ -604,7 +576,8 @@ describe('HttpTransport', () => {
 
     it('should generate minimal spec when file does not exist', async () => {
       const mockTransport = { send: jest.fn() };
-      const uri = 'swagger://docs/project/swagger/specs';
+      const uri = 'doc://openapi';
+      const id = 456;
 
       // Mock fs module to return false for existsSync
       const mockFs = {
@@ -618,9 +591,11 @@ describe('HttpTransport', () => {
       jest.doMock('fs', () => mockFs);
       jest.doMock('path', () => mockPath);
 
-      await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
+      await (transport as any).fetchOpenApiResource(uri, id, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id,
         result: {
           contents: [
             {
@@ -633,33 +608,34 @@ describe('HttpTransport', () => {
       });
     });
 
-    it('should handle errors during swagger resource fetch', async () => {
+    it('should handle errors during openapi resource fetch', async () => {
       const mockTransport = { send: jest.fn() };
-      const uri = 'swagger://docs/project/swagger/specs';
+      const uri = 'doc://openapi';
+      const id = 789;
 
       // Override the mock to simulate an error
-      (transport as any).fetchRealSwaggerResource = jest.fn().mockImplementation(
-        async (uri: string, transport: { send: (response: unknown) => void }): Promise<void> => {
+      (transport as any).fetchOpenApiResource = jest.fn().mockImplementation(
+        async (uri: string, id: unknown, transport: { send: (response: unknown) => void }): Promise<void> => {
           transport.send({
             jsonrpc: '2.0',
-            id: undefined,
+            id,
             error: {
               code: -32603,
-              message: 'Error fetching Swagger documentation',
+              message: 'Error fetching OpenAPI specification',
               data: 'File system error',
             },
           });
         }
       );
 
-      await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
+      await (transport as any).fetchOpenApiResource(uri, id, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
-        id: undefined,
+        id,
         error: {
           code: -32603,
-          message: 'Error fetching Swagger documentation',
+          message: 'Error fetching OpenAPI specification',
           data: 'File system error',
         },
       });

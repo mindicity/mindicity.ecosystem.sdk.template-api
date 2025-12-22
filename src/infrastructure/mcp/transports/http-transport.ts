@@ -139,10 +139,10 @@ export class HttpTransport implements McpTransport {
   }
 
   /**
-   * Fetch the real Swagger resource content from the generated OpenAPI document.
+   * Fetch the OpenAPI specification resource.
    * @private
    */
-  private async fetchRealSwaggerResource(uri: string, transport: { send: (response: unknown) => void }): Promise<void> {
+  private async fetchOpenApiResource(uri: string, id: unknown, transport: { send: (response: unknown) => void }): Promise<void> {
     try {
       // Try to read the exported OpenAPI JSON file first
       const fs = await import('fs');
@@ -151,15 +151,17 @@ export class HttpTransport implements McpTransport {
       const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
       
       if (fs.existsSync(openApiPath)) {
-        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
+        const openApiContent = fs.readFileSync(openApiPath, 'utf8');
         
         transport.send({
+          jsonrpc: '2.0',
+          id,
           result: {
             contents: [
               {
                 uri,
                 mimeType: 'application/json',
-                text: swaggerContent,
+                text: openApiContent,
               },
             ],
           },
@@ -169,20 +171,9 @@ export class HttpTransport implements McpTransport {
       
       // Fallback: generate a minimal spec if file doesn't exist
       const apiPrefix = this.dependencies.appConfig?.apiPrefix ?? '/mcapi';
-      const apiScopePrefix = this.dependencies.appConfig?.apiScopePrefix ?? '';
       const swaggerHostname = this.dependencies.appConfig?.swaggerHostname ?? 'http://localhost:3232';
       
-      // Build the scope path correctly:
-      // - If apiScopePrefix is empty: use empty string (no scope path)
-      // - If apiScopePrefix starts with '/': remove the leading slash to avoid double slashes
-      let scopePath = '';
-      if (apiScopePrefix && apiScopePrefix.trim() !== '') {
-        scopePath = apiScopePrefix.startsWith('/') ? apiScopePrefix.substring(1) : apiScopePrefix;
-      }
-      
-      const swaggerUiUrl = scopePath 
-        ? `${swaggerHostname}${apiPrefix}/docs/${scopePath}/swagger/ui`
-        : `${swaggerHostname}${apiPrefix}/docs/swagger/ui`;
+      const swaggerUiUrl = `${swaggerHostname}${apiPrefix}/docs/swagger/ui`;
       
       const minimalSpec = {
         openapi: '3.0.0',
@@ -203,6 +194,8 @@ export class HttpTransport implements McpTransport {
       };
 
       transport.send({
+        jsonrpc: '2.0',
+        id,
         result: {
           contents: [
             {
@@ -215,9 +208,11 @@ export class HttpTransport implements McpTransport {
       });
     } catch (error) {
       transport.send({
+        jsonrpc: '2.0',
+        id,
         error: {
           code: -32603,
-          message: 'Error fetching Swagger documentation',
+          message: 'Error fetching OpenAPI specification',
           data: error instanceof Error ? error.message : 'Unknown error',
         },
       });
@@ -346,26 +341,14 @@ export class HttpTransport implements McpTransport {
    * @private
    */
   private handleResourcesList(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
-    const apiScopePrefix = this.dependencies.appConfig?.apiScopePrefix ?? '';
-    
-    // Build the URI path correctly:
-    // - If apiScopePrefix is empty or undefined: swagger://docs/swagger/specs
-    // - If apiScopePrefix starts with '/': remove the leading slash to avoid double slashes
-    let uriPath = 'swagger://docs';
-    if (apiScopePrefix && apiScopePrefix.trim() !== '') {
-      const cleanPrefix = apiScopePrefix.startsWith('/') ? apiScopePrefix.substring(1) : apiScopePrefix;
-      uriPath += `/${cleanPrefix}`;
-    }
-    uriPath += '/swagger/specs';
-    
     transport.send({
       jsonrpc: '2.0',
       id: req.id,
       result: {
         resources: [
           {
-            uri: uriPath,
-            name: 'API Swagger Specification',
+            uri: 'doc://openapi',
+            name: 'API OpenAPI Specification',
             description: 'Complete OpenAPI/Swagger specification for the API endpoints',
             mimeType: 'application/json',
           },
@@ -382,27 +365,23 @@ export class HttpTransport implements McpTransport {
     const params = req.params as { uri?: string };
     const uri = params?.uri;
     
-    if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
-      // Read the real Swagger JSON specification from the generated document
-      await this.fetchRealSwaggerResource(uri, {
-        send: (response: unknown) => {
-          const resp = response as { result?: unknown; error?: unknown };
-          transport.send({
-            jsonrpc: '2.0',
-            id: req.id,
-            ...resp,
-          });
-        },
-      });
-    } else {
-      transport.send({
-        jsonrpc: '2.0',
-        id: req.id,
-        error: {
-          code: -32601,
-          message: `Unknown resource URI: ${uri}`,
-        },
-      });
+    switch (uri) {
+      case 'doc://openapi':
+        await this.fetchOpenApiResource(uri, req.id, transport);
+        break;
+      default:
+        transport.send({
+          jsonrpc: '2.0',
+          id: req.id,
+          error: {
+            code: -32601,
+            message: `Unknown resource URI: ${uri}`,
+            data: {
+              supportedSchemes: ['doc://'],
+              availableResources: ['doc://openapi'],
+            },
+          },
+        });
     }
   }
 

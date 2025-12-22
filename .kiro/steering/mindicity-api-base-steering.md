@@ -1028,6 +1028,118 @@ The MCP integration provides AI agents with structured access to API functionali
 - **Resources**: Dynamic data sources that agents can read
 - **Multiple Transports**: HTTP (default), SSE, and STDIO support for different use cases
 
+### MCP Resources Architecture (MANDATORY)
+
+**CRITICAL:** MCP resources MUST follow semantic URI schemes for better organization and AI agent understanding.
+
+#### **Resource URI Schemes (MANDATORY)**
+
+All MCP resources MUST use one of these standardized URI schemes:
+
+| Scheme | Purpose | Examples | Description |
+|--------|---------|----------|-------------|
+| `doc://` | Documentation | `doc://openapi`, `doc://readme`, `doc://changelog` | API documentation, guides, specifications |
+| `schema://` | JSON Schemas | `schema://user`, `schema://health`, `schema://error` | Data validation schemas, type definitions |
+| `examples://` | Code Examples | `examples://auth`, `examples://crud`, `examples://health` | Request/response examples, usage patterns |
+| `rules://` | Business Rules | `rules://validation`, `rules://permissions`, `rules://workflow` | Business logic, validation rules, policies |
+| `config://` | Configuration | `config://routes`, `config://env`, `config://swagger` | Application configuration, settings |
+
+#### **Resource Naming Convention (MANDATORY)**
+
+- **Pattern**: `{scheme}://{simple-id}`
+- **Simple ID**: Use lowercase, single word or hyphenated identifiers
+- **No Scope Prefix**: Remove project-specific prefixes for cleaner URIs
+- **Semantic**: Choose meaningful, intention-based identifiers
+
+#### **Standard Resource Implementation**
+
+```typescript
+// ✅ CORRECT: Semantic URI schemes
+const resources = [
+  {
+    uri: 'doc://openapi',
+    name: 'API OpenAPI Specification',
+    description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+    mimeType: 'application/json',
+  },
+  {
+    uri: 'doc://readme',
+    name: 'API Documentation',
+    description: 'Main API documentation and usage guide',
+    mimeType: 'text/markdown',
+  },
+  {
+    uri: 'schema://health',
+    name: 'Health Check Schema',
+    description: 'JSON schema for health check responses',
+    mimeType: 'application/json',
+  },
+  {
+    uri: 'examples://health',
+    name: 'Health Check Examples',
+    description: 'Example requests and responses for health endpoints',
+    mimeType: 'application/json',
+  },
+  {
+    uri: 'rules://validation',
+    name: 'Validation Rules',
+    description: 'Business validation rules and constraints',
+    mimeType: 'application/json',
+  },
+];
+
+// ❌ WRONG: Old swagger:// scheme with scope prefix
+{
+  uri: 'swagger://docs/project/swagger/specs',  // Too complex, scope-dependent
+  name: 'API Swagger Specification',
+}
+```
+
+#### **Resource Handler Implementation Pattern**
+
+```typescript
+private async handleResourcesRead(req: { params?: { uri?: string } }, transport: any): Promise<void> {
+  const uri = req.params?.uri;
+  
+  switch (uri) {
+    case 'doc://openapi':
+      await this.fetchOpenApiResource(uri, transport);
+      break;
+    case 'doc://readme':
+      await this.fetchReadmeResource(uri, transport);
+      break;
+    case 'schema://health':
+      await this.fetchHealthSchemaResource(uri, transport);
+      break;
+    case 'examples://health':
+      await this.fetchHealthExamplesResource(uri, transport);
+      break;
+    case 'rules://validation':
+      await this.fetchValidationRulesResource(uri, transport);
+      break;
+    default:
+      transport.send({
+        error: {
+          code: -32601,
+          message: `Unknown resource URI: ${uri}`,
+          data: {
+            supportedSchemes: ['doc://', 'schema://', 'examples://', 'rules://', 'config://'],
+            availableResources: ['doc://openapi', 'doc://readme', 'schema://health', 'examples://health'],
+          },
+        },
+      });
+  }
+}
+```
+
+#### **Benefits of Semantic URI Schemes**
+
+1. **AI Agent Understanding**: Clear categorization helps AI agents understand resource types
+2. **Simplified URIs**: No complex paths or scope prefixes
+3. **Consistent Organization**: Standardized schemes across all Mindicity APIs
+4. **Better Discovery**: AI agents can predict resource availability by scheme
+5. **Maintainability**: Easier to manage and extend resource collections
+
 ### MCP Integration Rules
 
 #### 1. One Tool Per Endpoint/Intention (MANDATORY)
