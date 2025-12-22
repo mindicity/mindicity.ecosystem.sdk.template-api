@@ -139,6 +139,26 @@ Description: User management and authentication API
 
 **DTO and Interface Files**: Replace all instances of `Template`/`template` with appropriate casing.
 
+**Test Files (.spec.ts)**: Update all test files with template/project references:
+
+- `template.controller.spec.ts` → `{api_name}.controller.spec.ts`
+- `template.service.spec.ts` → `{api_name}.service.spec.ts`
+- `test/template.e2e-spec.ts` → `test/{api_name}.e2e-spec.ts`
+- Update import paths: `../template/template.module` → `../{api_name}/{api_name}.module`
+- Update class references: `TemplateController`, `TemplateService` → `{ApiNamePascal}Controller`, `{ApiNamePascal}Service`
+- Update describe blocks: `describe('TemplateController')` → `describe('{ApiNamePascal}Controller')`
+- Update test descriptions: `'should create template'` → `'should create {api_name}'`
+- Update mock data: `mockTemplate` → `mock{ApiNamePascal}`
+- Update API endpoints in tests: `'/mcapi/template'` → `'/mcapi/{api_name}'`
+- Update route constants: `ROUTES.TEMPLATE` → `ROUTES.{API_NAME_UPPER}`
+
+**E2E Test Files**: Special attention to endpoint testing:
+
+- Update all HTTP requests: `request(app.getHttpServer()).get('/mcapi/template')` → `request(app.getHttpServer()).get('/mcapi/{api_name}')`
+- Update test expectations for API responses
+- Update any hardcoded 'template' strings in test data
+- Update swagger documentation tests if present
+
 ### Step 6: Documentation and Configuration
 
 **Update README.md**:
@@ -212,7 +232,17 @@ Description: User management and authentication API
 2. **Build Check**: `npm run build` (must succeed)
 3. **Lint Check**: `npm run lint` (must pass)
 4. **Test Verification**: `npm run test` (all tests must pass)
-5. **MCP Integration Check**: Verify MCP tools are implemented and working
+5. **Test Files Check**: Verify all `.spec.ts` files have been renamed and updated correctly
+6. **MCP Integration Check**: Verify MCP tools are implemented and working
+
+**Test Files Verification Checklist**:
+- [ ] All test files renamed from `template.*` to `{api_name}.*`
+- [ ] Import paths updated in test files
+- [ ] Class references updated (`TemplateController` → `{ApiNamePascal}Controller`)
+- [ ] Describe blocks updated (`describe('TemplateController')` → `describe('{ApiNamePascal}Controller')`)
+- [ ] Test descriptions updated to use new API name
+- [ ] Mock data variables renamed appropriately
+- [ ] API endpoint paths updated in E2E tests (`'/template'` → `'/{api_name}'`)
 
 **If any step fails**, the bootstrap is incomplete and must be fixed before proceeding.
 
@@ -279,6 +309,10 @@ Description: User management and authentication API
 - **npm install fails**: Ensure Node.js version >= 18 and npm is updated
 - **Build fails**: Check TypeScript configuration and verify all imports are updated
 - **Test failures**: Ensure all class names and imports in test files are properly renamed
+- **Test import errors**: Verify all import paths in `.spec.ts` files have been updated from `template` to `{api_name}`
+- **E2E test failures**: Check that all API endpoint paths in tests have been updated (`'/mcapi/template'` → `'/mcapi/{api_name}'`)
+- **Mock data errors**: Ensure all mock variables have been renamed (`mockTemplate` → `mock{ApiNamePascal}`)
+- **Describe block mismatches**: Verify all `describe()` blocks use the new API name
 
 ### Success Criteria
 
