@@ -247,14 +247,14 @@ describe('HttpTransport', () => {
   });
 
   describe('MCP request handling', () => {
-    it('should handle initialize method', () => {
+    it('should handle initialize method', async () => {
       const request = { method: 'initialize', id: 1 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
       // Set up the MCP server first
       (transport as any).mcpServer = mockMcpServer;
 
-      (transport as any).handleMcpRequest(request, mockTransport);
+      await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
@@ -273,14 +273,14 @@ describe('HttpTransport', () => {
       });
     });
 
-    it('should handle unknown methods', () => {
+    it('should handle unknown methods', async () => {
       const request = { method: 'unknown', id: 2 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
       // Set up the MCP server first
       (transport as any).mcpServer = mockMcpServer;
 
-      (transport as any).handleMcpRequest(request, mockTransport);
+      await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
@@ -292,14 +292,14 @@ describe('HttpTransport', () => {
       });
     });
 
-    it('should handle errors during request processing', () => {
+    it('should handle errors during request processing', async () => {
       const request = null; // This will cause an error
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
       // Set up the MCP server first
       (transport as any).mcpServer = mockMcpServer;
 
-      (transport as any).handleMcpRequest(request, mockTransport);
+      await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
@@ -312,7 +312,7 @@ describe('HttpTransport', () => {
       });
     });
 
-    it('should throw error when MCP server not initialized', () => {
+    it('should throw error when MCP server not initialized', async () => {
       const request = { method: 'initialize', id: 1 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
@@ -322,9 +322,9 @@ describe('HttpTransport', () => {
       });
       const freshTransport = new HttpTransport(config, freshDependencies);
 
-      expect(() => {
-        (freshTransport as any).handleMcpRequest(request, mockTransport);
-      }).toThrow('MCP server not initialized');
+      await expect(
+        (freshTransport as any).handleMcpRequest(request, mockTransport)
+      ).rejects.toThrow('MCP server not initialized');
     });
   });
 });

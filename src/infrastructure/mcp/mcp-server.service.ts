@@ -293,25 +293,15 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     mimeType: string;
   }> {
     const appConfig = this.configService.get('app');
-    const swaggerHostname = this.configService.get('app.swaggerHostname') ?? 'http://localhost:3232';
-    const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
     const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
     
-    // Define available API documentation resources
+    // Define available API documentation resources - only specs, no UI
     const apiResources = [
       {
         uri: `swagger://api-docs${apiScopePrefix}/swagger/specs`,
         name: 'API Swagger Specification',
         description: 'Complete OpenAPI/Swagger specification for the API endpoints',
         mimeType: 'application/json',
-        url: `${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/specs`,
-      },
-      {
-        uri: `swagger://api-docs${apiScopePrefix}/swagger/ui`,
-        name: 'API Swagger UI',
-        description: 'Interactive Swagger UI for exploring and testing API endpoints',
-        mimeType: 'text/html',
-        url: `${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`,
       },
     ];
 
@@ -330,30 +320,10 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   private async handleDynamicResourceRead(uri: string): Promise<{
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
   }> {
-    const appConfig = this.configService.get('app');
-    const swaggerHostname = this.configService.get('app.swaggerHostname') ?? 'http://localhost:3232';
-    const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
-    const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
-
     try {
-      if (uri.startsWith('swagger://api-docs')) {
-        if (uri.includes('/swagger/specs')) {
-          // Fetch Swagger JSON specification
-          const swaggerUrl = `${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/specs`;
-          return this.fetchSwaggerResource(uri, swaggerUrl, 'application/json');
-        } else if (uri.includes('/swagger/ui')) {
-          // Return Swagger UI information
-          const swaggerUiUrl = `${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`;
-          return {
-            contents: [
-              {
-                uri,
-                mimeType: 'text/plain',
-                text: `Swagger UI is available at: ${swaggerUiUrl}\n\nThis interactive documentation allows you to:\n- Explore all API endpoints\n- Test endpoints directly from the browser\n- View request/response schemas\n- Understand authentication requirements\n\nTo access the Swagger UI, open the URL above in your web browser.`,
-              },
-            ],
-          };
-        }
+      if (uri.startsWith('swagger://api-docs') && uri.includes('/swagger/specs')) {
+        // Fetch the real Swagger JSON specification from the generated document
+        return this.fetchRealSwaggerResource(uri);
       }
 
       throw new Error(`Unknown resource URI: ${uri}`);
@@ -376,68 +346,78 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Fetch Swagger resource content from the API.
+   * Fetch the real Swagger resource content from the generated OpenAPI document.
    * @private
    */
-  private async fetchSwaggerResource(uri: string, url: string, mimeType: string): Promise<{
+  private async fetchRealSwaggerResource(uri: string): Promise<{
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
   }> {
     try {
-      // For now, return a placeholder since we can't make HTTP requests to ourselves
-      // In a real implementation, you might use the HTTP client or access the Swagger document directly
-      const swaggerPlaceholder = {
+      // Try to read the exported OpenAPI JSON file first
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
+      
+      if (fs.existsSync(openApiPath)) {
+        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
+        
+        this.logger.debug('Swagger specification loaded from file', { 
+          path: openApiPath,
+          size: swaggerContent.length 
+        });
+        
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: swaggerContent,
+            },
+          ],
+        };
+      }
+      
+      // Fallback: generate a minimal spec if file doesn't exist
+      this.logger.warn('OpenAPI file not found, generating minimal specification', { 
+        expectedPath: openApiPath 
+      });
+      
+      const appConfig = this.configService.get('app');
+      const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
+      const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
+      const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
+      
+      const minimalSpec = {
         openapi: '3.0.0',
         info: {
           title: this.mcpConfig.serverName,
           version: this.mcpConfig.serverVersion,
-          description: 'API documentation available via Swagger UI',
+          description: 'API specification - full documentation available via Swagger UI',
         },
         servers: [
           {
-            url: url.replace('/docs/project/swagger/specs', ''),
+            url: `${swaggerHostname}${apiPrefix}`,
             description: 'API Server',
           },
         ],
-        paths: {
-          '/health/project/ping': {
-            get: {
-              tags: ['health'],
-              summary: 'Health check endpoint',
-              responses: {
-                '200': {
-                  description: 'API is healthy',
-                  content: {
-                    'application/json': {
-                      schema: {
-                        type: 'object',
-                        properties: {
-                          status: { type: 'string', example: 'ok' },
-                          timestamp: { type: 'string', format: 'date-time' },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        note: `Complete API documentation is available at: ${url}`,
+        paths: {},
+        components: {},
+        note: `Complete API documentation with all endpoints is available at: ${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`,
       };
 
       return {
         contents: [
           {
             uri,
-            mimeType,
-            text: JSON.stringify(swaggerPlaceholder, null, 2),
+            mimeType: 'application/json',
+            text: JSON.stringify(minimalSpec, null, 2),
           },
         ],
       };
     } catch (error) {
-      this.logger.error('Error fetching Swagger resource', { 
+      this.logger.error('Error fetching real Swagger resource', { 
         uri, 
-        url, 
         err: error 
       });
       
@@ -446,12 +426,13 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
           {
             uri,
             mimeType: 'text/plain',
-            text: `Error fetching Swagger documentation from ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            text: `Error fetching Swagger documentation: ${error instanceof Error ? error.message : 'Unknown error'}`,
           },
         ],
       };
     }
   }
+
   /**
    * Handle get_api_health tool call using the HealthService.
    * @private

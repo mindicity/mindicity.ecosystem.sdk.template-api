@@ -160,10 +160,10 @@ export class SseTransport implements McpTransport {
       body += chunk.toString();
     });
 
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const request = JSON.parse(body);
-        const response = this.processMcpRequest(request);
+        const response = await this.processMcpRequest(request);
         
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(response));
@@ -222,11 +222,6 @@ export class SseTransport implements McpTransport {
           name: 'API Swagger Specification',
           description: 'Complete OpenAPI/Swagger specification for the API endpoints',
         },
-        {
-          uri: 'swagger://docs/project/swagger/ui',
-          name: 'API Swagger UI',
-          description: 'Interactive Swagger UI for exploring and testing API endpoints',
-        },
       ],
     };
 
@@ -235,10 +230,85 @@ export class SseTransport implements McpTransport {
   }
 
   /**
+   * Fetch the real Swagger resource content from the generated OpenAPI document.
+   * @private
+   */
+  private async fetchRealSwaggerResource(uri: string, requestId: unknown): Promise<unknown> {
+    try {
+      // Try to read the exported OpenAPI JSON file first
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
+      
+      if (fs.existsSync(openApiPath)) {
+        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
+        
+        return {
+          jsonrpc: '2.0',
+          id: requestId,
+          result: {
+            contents: [
+              {
+                uri,
+                mimeType: 'application/json',
+                text: swaggerContent,
+              },
+            ],
+          },
+        };
+      }
+      
+      // Fallback: generate a minimal spec if file doesn't exist
+      const minimalSpec = {
+        openapi: '3.0.0',
+        info: {
+          title: this.config.serverName,
+          version: this.config.serverVersion,
+          description: 'API specification - full documentation available via Swagger UI',
+        },
+        servers: [
+          {
+            url: 'http://localhost:3232/mcapi',
+            description: 'API Server',
+          },
+        ],
+        paths: {},
+        components: {},
+        note: 'Complete API documentation with all endpoints is available at: http://localhost:3232/mcapi/docs/project/swagger/ui',
+      };
+
+      return {
+        jsonrpc: '2.0',
+        id: requestId,
+        result: {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: JSON.stringify(minimalSpec, null, 2),
+            },
+          ],
+        },
+      };
+    } catch (error) {
+      return {
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32603,
+          message: 'Error fetching Swagger documentation',
+          data: error instanceof Error ? error.message : 'Unknown error',
+        },
+      };
+    }
+  }
+
+  /**
    * Process MCP request and return response.
    * @private
    */
-  private processMcpRequest(request: unknown): unknown {
+  private async processMcpRequest(request: unknown): Promise<unknown> {
     const req = request as { method?: string; id?: unknown; params?: unknown };
     
     if (req.method === 'initialize') {
@@ -307,7 +377,7 @@ export class SseTransport implements McpTransport {
         };
       }
     } else if (req.method === 'resources/list') {
-      // Handle resources/list request
+      // Handle resources/list request - only specs, no UI
       return {
         jsonrpc: '2.0',
         id: req.id,
@@ -319,12 +389,6 @@ export class SseTransport implements McpTransport {
               description: 'Complete OpenAPI/Swagger specification for the API endpoints',
               mimeType: 'application/json',
             },
-            {
-              uri: 'swagger://docs/project/swagger/ui',
-              name: 'API Swagger UI',
-              description: 'Interactive Swagger UI for exploring and testing API endpoints',
-              mimeType: 'text/html',
-            },
           ],
         },
       };
@@ -333,87 +397,9 @@ export class SseTransport implements McpTransport {
       const params = req.params as { uri?: string };
       const uri = params?.uri;
       
-      if (uri?.startsWith('swagger://docs')) {
-        if (uri.includes('/swagger/specs')) {
-          // Return Swagger JSON specification placeholder
-          const swaggerSpec = {
-            openapi: '3.0.0',
-            info: {
-              title: this.config.serverName,
-              version: this.config.serverVersion,
-              description: 'API documentation available via Swagger UI',
-            },
-            servers: [
-              {
-                url: 'http://localhost:3232/mcapi',
-                description: 'API Server',
-              },
-            ],
-            paths: {
-              '/health/project/ping': {
-                get: {
-                  tags: ['health'],
-                  summary: 'Health check endpoint',
-                  responses: {
-                    '200': {
-                      description: 'API is healthy',
-                      content: {
-                        'application/json': {
-                          schema: {
-                            type: 'object',
-                            properties: {
-                              status: { type: 'string', example: 'ok' },
-                              timestamp: { type: 'string', format: 'date-time' },
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            note: 'Complete API documentation is available at: http://localhost:3232/mcapi/docs/project/swagger/specs',
-          };
-
-          return {
-            jsonrpc: '2.0',
-            id: req.id,
-            result: {
-              contents: [
-                {
-                  uri,
-                  mimeType: 'application/json',
-                  text: JSON.stringify(swaggerSpec, null, 2),
-                },
-              ],
-            },
-          };
-        } else if (uri.includes('/swagger/ui')) {
-          // Return Swagger UI information
-          return {
-            jsonrpc: '2.0',
-            id: req.id,
-            result: {
-              contents: [
-                {
-                  uri,
-                  mimeType: 'text/plain',
-                  text: `Swagger UI is available at: http://localhost:3232/mcapi/docs/project/swagger/ui\n\nThis interactive documentation allows you to:\n- Explore all API endpoints\n- Test endpoints directly from the browser\n- View request/response schemas\n- Understand authentication requirements\n\nTo access the Swagger UI, open the URL above in your web browser.`,
-                },
-              ],
-            },
-          };
-        } else {
-          return {
-            jsonrpc: '2.0',
-            id: req.id,
-            error: {
-              code: -32601,
-              message: `Unknown resource URI: ${uri}`,
-            },
-          };
-        }
+      if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
+        // Read the real Swagger JSON specification from the generated document
+        return await this.fetchRealSwaggerResource(uri, req.id);
       } else {
         return {
           jsonrpc: '2.0',
