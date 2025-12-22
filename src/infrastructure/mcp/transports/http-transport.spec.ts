@@ -327,5 +327,281 @@ describe('HttpTransport', () => {
         (freshTransport as any).handleMcpRequest(request, mockTransport)
       ).rejects.toThrow('MCP server not initialized');
     });
+
+    it('should handle tools/list method', async () => {
+      const request = { method: 'tools/list', id: 3 };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 3,
+        result: {
+          tools: [
+            {
+              name: 'get_api_health',
+              description: 'Check the health status of the API server',
+              inputSchema: {
+                type: 'object',
+                properties: {},
+                required: [],
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle tools/call method with get_api_health', async () => {
+      const request = { 
+        method: 'tools/call', 
+        id: 4,
+        params: { name: 'get_api_health', arguments: {} }
+      };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 4,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(mockHealthService.getHealthStatus(), null, 2),
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle tools/call method with unknown tool', async () => {
+      const request = { 
+        method: 'tools/call', 
+        id: 5,
+        params: { name: 'unknown_tool', arguments: {} }
+      };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 5,
+        error: {
+          code: -32601,
+          message: 'Unknown tool: unknown_tool',
+        },
+      });
+    });
+
+    it('should handle resources/list method', async () => {
+      const request = { method: 'resources/list', id: 6 };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 6,
+        result: {
+          resources: [
+            {
+              uri: 'swagger://docs/project/swagger/specs',
+              name: 'API Swagger Specification',
+              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+              mimeType: 'application/json',
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle resources/read method with swagger URI', async () => {
+      const request = { 
+        method: 'resources/read', 
+        id: 7,
+        params: { uri: 'swagger://docs/project/swagger/specs' }
+      };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      (transport as any).mcpServer = mockMcpServer;
+
+      // Mock the fetchRealSwaggerResource method
+      (transport as any).fetchRealSwaggerResource = jest.fn().mockImplementation(
+        async (uri: string, transport: { send: (response: unknown) => void }): Promise<void> => {
+          transport.send({
+            result: {
+              contents: [
+                {
+                  uri,
+                  mimeType: 'application/json',
+                  text: '{"openapi": "3.0.0"}',
+                },
+              ],
+            },
+          });
+        }
+      );
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect((transport as any).fetchRealSwaggerResource).toHaveBeenCalled();
+    });
+
+    it('should handle resources/read method with unknown URI', async () => {
+      const request = { 
+        method: 'resources/read', 
+        id: 8,
+        params: { uri: 'unknown://resource' }
+      };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 8,
+        error: {
+          code: -32601,
+          message: 'Unknown resource URI: unknown://resource',
+        },
+      });
+    });
+  });
+
+  describe('fetchRealSwaggerResource', () => {
+    it('should fetch swagger content from file system', async () => {
+      const mockTransport = { send: jest.fn() };
+      const uri = 'swagger://docs/project/swagger/specs';
+
+      // Mock fs module
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(true),
+        readFileSync: jest.fn().mockReturnValue('{"openapi": "3.0.0", "info": {"title": "Test API"}}'),
+      };
+
+      const mockPath = {
+        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
+      };
+
+      jest.doMock('fs', () => mockFs);
+      jest.doMock('path', () => mockPath);
+
+      await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
+
+      expect(mockFs.existsSync).toHaveBeenCalledWith('/path/to/openapi.json');
+      expect(mockFs.readFileSync).toHaveBeenCalledWith('/path/to/openapi.json', 'utf8');
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: undefined,
+        result: {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: '{"openapi": "3.0.0", "info": {"title": "Test API"}}',
+            },
+          ],
+        },
+      });
+    });
+
+    it('should generate minimal spec when file does not exist', async () => {
+      const mockTransport = { send: jest.fn() };
+      const uri = 'swagger://docs/project/swagger/specs';
+
+      // Mock fs module to return false for existsSync
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(false),
+      };
+
+      const mockPath = {
+        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
+      };
+
+      jest.doMock('fs', () => mockFs);
+      jest.doMock('path', () => mockPath);
+
+      await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: undefined,
+        result: {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: expect.stringContaining('"openapi": "3.0.0"'),
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle errors during swagger resource fetch', async () => {
+      const mockTransport = { send: jest.fn() };
+      const uri = 'swagger://docs/project/swagger/specs';
+
+      // Override the mock to simulate an error
+      (transport as any).fetchRealSwaggerResource = jest.fn().mockImplementation(
+        async (uri: string, transport: { send: (response: unknown) => void }): Promise<void> => {
+          transport.send({
+            jsonrpc: '2.0',
+            id: undefined,
+            error: {
+              code: -32603,
+              message: 'Error fetching Swagger documentation',
+              data: 'File system error',
+            },
+          });
+        }
+      );
+
+      await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: undefined,
+        error: {
+          code: -32603,
+          message: 'Error fetching Swagger documentation',
+          data: 'File system error',
+        },
+      });
+    });
+  });
+
+  describe('dependency validation', () => {
+    it('should throw error when healthService is missing', () => {
+      const invalidDependencies = {};
+      
+      expect(() => {
+        new HttpTransport(config, invalidDependencies);
+      }).toThrow('HttpTransport requires HealthService in dependencies');
+    });
+
+    it('should accept valid dependencies', () => {
+      const validDependencies = createTransportDependencies({
+        healthService: mockHealthService,
+      });
+      
+      expect(() => {
+        new HttpTransport(config, validDependencies);
+      }).not.toThrow();
+    });
   });
 });

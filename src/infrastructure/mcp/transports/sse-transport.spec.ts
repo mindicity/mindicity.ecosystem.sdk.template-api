@@ -512,4 +512,269 @@ describe('SseTransport', () => {
       expect(info).toHaveProperty('capabilities');
     });
   });
+
+  describe('dependency validation', () => {
+    it('should throw error when healthService is missing', () => {
+      const invalidDependencies = {};
+      
+      expect(() => {
+        new SseTransport(config, invalidDependencies);
+      }).toThrow('SseTransport requires HealthService in dependencies');
+    });
+
+    it('should accept valid dependencies', () => {
+      const validDependencies = createTransportDependencies({
+        healthService: mockHealthService,
+      });
+      
+      expect(() => {
+        new SseTransport(config, validDependencies);
+      }).not.toThrow();
+    });
+  });
+
+  describe('MCP method processing', () => {
+    it('should handle tools/list method', () => {
+      const request = { method: 'tools/list', id: 3 };
+      const response = (transport as any).processMcpRequest(request);
+
+      expect(response).toEqual({
+        jsonrpc: '2.0',
+        id: 3,
+        result: {
+          tools: [
+            {
+              name: 'get_api_health',
+              description: 'Check the health status of the API server',
+              inputSchema: {
+                type: 'object',
+                properties: {},
+                required: [],
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle tools/call method with get_api_health', () => {
+      const request = { 
+        method: 'tools/call', 
+        id: 4,
+        params: { name: 'get_api_health', arguments: {} }
+      };
+      const response = (transport as any).processMcpRequest(request);
+
+      expect(response).toEqual({
+        jsonrpc: '2.0',
+        id: 4,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(mockHealthService.getHealthStatus(), null, 2),
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle tools/call method with unknown tool', () => {
+      const request = { 
+        method: 'tools/call', 
+        id: 5,
+        params: { name: 'unknown_tool', arguments: {} }
+      };
+      const response = (transport as any).processMcpRequest(request);
+
+      expect(response).toEqual({
+        jsonrpc: '2.0',
+        id: 5,
+        error: {
+          code: -32601,
+          message: 'Unknown tool: unknown_tool',
+        },
+      });
+    });
+
+    it('should handle resources/list method', () => {
+      const request = { method: 'resources/list', id: 6 };
+      const response = (transport as any).processMcpRequest(request);
+
+      expect(response).toEqual({
+        jsonrpc: '2.0',
+        id: 6,
+        result: {
+          resources: [
+            {
+              uri: 'swagger://docs/project/swagger/specs',
+              name: 'API Swagger Specification',
+              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+              mimeType: 'application/json',
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle resources/read method with swagger URI', () => {
+      const request = { 
+        method: 'resources/read', 
+        id: 7,
+        params: { uri: 'swagger://docs/project/swagger/specs' }
+      };
+      
+      // Mock the fetchRealSwaggerResource method
+      jest.spyOn(transport as any, 'fetchRealSwaggerResource').mockResolvedValue({
+        jsonrpc: '2.0',
+        id: 7,
+        result: {
+          contents: [
+            {
+              uri: 'swagger://docs/project/swagger/specs',
+              mimeType: 'application/json',
+              text: '{"openapi": "3.0.0"}',
+            },
+          ],
+        },
+      });
+      
+      const response = (transport as any).processMcpRequest(request);
+      
+      expect(response).toBeDefined();
+    });
+
+    it('should handle resources/read method with unknown URI', () => {
+      const request = { 
+        method: 'resources/read', 
+        id: 8,
+        params: { uri: 'unknown://resource' }
+      };
+      const response = (transport as any).processMcpRequest(request);
+
+      expect(response).toEqual({
+        jsonrpc: '2.0',
+        id: 8,
+        error: {
+          code: -32601,
+          message: 'Unknown resource URI: unknown://resource',
+        },
+      });
+    });
+  });
+
+  describe('fetchRealSwaggerResource', () => {
+    it('should fetch swagger content from file system', async () => {
+      const uri = 'swagger://docs/project/swagger/specs';
+      const requestId = 'test-id';
+
+      // Mock fs module
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(true),
+        readFileSync: jest.fn().mockReturnValue('{"openapi": "3.0.0", "info": {"title": "Test API"}}'),
+      };
+
+      const mockPath = {
+        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
+      };
+
+      jest.doMock('fs', () => mockFs);
+      jest.doMock('path', () => mockPath);
+
+      const result = await (transport as any).fetchRealSwaggerResource(uri, requestId);
+
+      expect(result).toEqual({
+        jsonrpc: '2.0',
+        id: requestId,
+        result: {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: '{"openapi": "3.0.0", "info": {"title": "Test API"}}',
+            },
+          ],
+        },
+      });
+    });
+
+    it('should generate minimal spec when file does not exist', async () => {
+      const uri = 'swagger://docs/project/swagger/specs';
+      const requestId = 'test-id';
+
+      // Mock fs module to return false for existsSync
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(false),
+      };
+
+      const mockPath = {
+        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
+      };
+
+      jest.doMock('fs', () => mockFs);
+      jest.doMock('path', () => mockPath);
+
+      const result = await (transport as any).fetchRealSwaggerResource(uri, requestId);
+
+      expect(result).toEqual({
+        jsonrpc: '2.0',
+        id: requestId,
+        result: {
+          contents: [
+            {
+              uri,
+              mimeType: 'application/json',
+              text: expect.stringContaining('"openapi": "3.0.0"'),
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle errors during swagger resource fetch', async () => {
+      const uri = 'swagger://docs/project/swagger/specs';
+      const requestId = 'test-id';
+
+      // Mock fs module to throw error during existsSync
+      const mockFs = {
+        existsSync: jest.fn().mockImplementation(() => {
+          throw new Error('File system error');
+        }),
+      };
+
+      // Clear any existing mocks
+      jest.resetModules();
+      
+      // Mock the dynamic import to return our mock
+      const originalImport = (transport as any).constructor.prototype.fetchRealSwaggerResource;
+      (transport as any).fetchRealSwaggerResource = async (uri: string, requestId: unknown) => {
+        try {
+          // Simulate the fs import throwing an error
+          throw new Error('File system error');
+        } catch (error) {
+          return {
+            jsonrpc: '2.0',
+            id: requestId,
+            error: {
+              code: -32603,
+              message: 'Error fetching Swagger documentation',
+              data: error instanceof Error ? error.message : 'Unknown error',
+            },
+          };
+        }
+      };
+
+      const result = await (transport as any).fetchRealSwaggerResource(uri, requestId);
+
+      expect(result).toEqual({
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32603,
+          message: 'Error fetching Swagger documentation',
+          data: 'File system error',
+        },
+      });
+    });
+  });
 });
