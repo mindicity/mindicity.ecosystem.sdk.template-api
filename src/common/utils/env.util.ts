@@ -166,6 +166,7 @@ export class EnvUtil {
       if (variableName) {
         const logKey = `${variableName}_undefined`;
         if (!EnvUtil.loggedErrors.has(logKey)) {
+          // eslint-disable-next-line no-console
           console.warn(`⚠️  Environment variable ${variableName} is not set, using default: ${defaultValue}`);
           EnvUtil.loggedErrors.add(logKey);
         }
@@ -180,6 +181,7 @@ export class EnvUtil {
         const logKey = `${variableName}_${trimmed}`;
         if (!EnvUtil.loggedErrors.has(logKey)) {
           const errorMsg = `❌ Invalid value for ${variableName}: "${trimmed}". Allowed values: [${allowedValues.join(', ')}]. Using default: ${defaultValue}`;
+          // eslint-disable-next-line no-console
           console.error(errorMsg);
           EnvUtil.loggedErrors.add(logKey);
         }

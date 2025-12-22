@@ -16,11 +16,11 @@ export class SseTransport implements McpTransport {
 
   constructor(private readonly config: TransportConfig) {}
 
-  async connect(server: Server): Promise<void> {
+  connect(server: Server): Promise<void> {
     this.mcpServer = server;
     
     this.httpServer = createServer((req, res) => {
-      const parsedUrl = parse(req.url || '', true);
+      const parsedUrl = parse(req.url ?? '', true);
       
       // Set CORS headers
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -45,7 +45,7 @@ export class SseTransport implements McpTransport {
       }
     });
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       this.httpServer!.listen(this.config.port, this.config.host, () => {
         resolve();
       });
@@ -56,7 +56,7 @@ export class SseTransport implements McpTransport {
     });
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
     // Close all SSE connections
     for (const client of this.clients) {
       client.end();
@@ -71,6 +71,7 @@ export class SseTransport implements McpTransport {
         });
       });
     }
+    return Promise.resolve();
   }
 
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
@@ -132,10 +133,10 @@ export class SseTransport implements McpTransport {
       body += chunk.toString();
     });
 
-    req.on('end', async () => {
+    req.on('end', () => {
       try {
         const request = JSON.parse(body);
-        const response = await this.processMcpRequest(request);
+        const response = this.processMcpRequest(request);
         
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(response));
@@ -146,14 +147,14 @@ export class SseTransport implements McpTransport {
           response,
           timestamp: new Date().toISOString(),
         });
-      } catch (error) {
+      } catch (_error) {
         const errorResponse = {
           jsonrpc: '2.0',
           id: null,
           error: {
             code: -32700,
             message: 'Parse error',
-            data: error instanceof Error ? error.message : 'Unknown error',
+            data: _error instanceof Error ? _error.message : 'Unknown error',
           },
         };
 
@@ -192,7 +193,7 @@ export class SseTransport implements McpTransport {
    * Process MCP request and return response.
    * @private
    */
-  private async processMcpRequest(request: unknown): Promise<unknown> {
+  private processMcpRequest(request: unknown): unknown {
     const req = request as { method?: string; id?: unknown; params?: unknown };
     
     if (req.method === 'initialize') {
@@ -241,7 +242,7 @@ export class SseTransport implements McpTransport {
     for (const client of this.clients) {
       try {
         this.sendSseEvent(client, event, data);
-      } catch (error) {
+      } catch {
         // Remove client if sending fails
         this.clients.delete(client);
       }

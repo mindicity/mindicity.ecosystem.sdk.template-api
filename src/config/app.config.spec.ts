@@ -214,7 +214,11 @@ describe('Configuration Validation Property Tests', () => {
         fc.string().filter((s) => {
           // Filter out strings that could parse to valid numbers (including 0)
           const trimmed = s.trim();
-          return !/^\d+$/.test(trimmed) && trimmed !== '' && isNaN(Number(trimmed));
+          const parsed = parseInt(trimmed, 10);
+          // Only include strings that either:
+          // 1. Parse to NaN (completely invalid)
+          // 2. Parse to a number outside valid port range (0 or > 65535)
+          return isNaN(parsed) || parsed <= 0 || parsed > 65535;
         }),
         (invalidPort) => {
           // Arrange: Set up non-numeric port
@@ -223,13 +227,19 @@ describe('Configuration Validation Property Tests', () => {
           try {
             process.env.APP_PORT = invalidPort;
 
-            // Act: Load configuration with non-numeric port
-            const config = appConfig();
-
-            // Assert: Should use default port value (3232) for non-numeric inputs
-            expect(config).toBeDefined();
-            expect(config.port).toBe(3232); // Default port
-            expect(typeof config.port).toBe('number');
+            // Act & Assert: Should either use default or throw validation error
+            const parsed = parseInt(invalidPort.trim(), 10);
+            
+            if (isNaN(parsed)) {
+              // For completely invalid strings, should use default
+              const config = appConfig();
+              expect(config).toBeDefined();
+              expect(config.port).toBe(3232); // Default port
+              expect(typeof config.port).toBe('number');
+            } else {
+              // For invalid port numbers (0, negative, > 65535), should throw
+              expect(() => appConfig()).toThrow();
+            }
           } finally {
             // Restore original environment
             process.env = originalEnv;

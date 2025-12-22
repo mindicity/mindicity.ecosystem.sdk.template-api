@@ -14,7 +14,7 @@ export class HttpTransport implements McpTransport {
 
   constructor(private readonly config: TransportConfig) {}
 
-  async connect(server: Server): Promise<void> {
+  connect(server: Server): Promise<void> {
     this.mcpServer = server;
     
     this.httpServer = createServer((req, res) => {
@@ -40,23 +40,23 @@ export class HttpTransport implements McpTransport {
         body += chunk.toString();
       });
 
-      req.on('end', async () => {
+      req.on('end', (): void => {
         try {
           const request = JSON.parse(body);
           
           // Create a mock transport for handling the request
           const mockTransport = {
-            send: (response: unknown) => {
+            send: (response: unknown): void => {
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(response));
             },
-            close: () => {
+            close: (): void => {
               // No-op for HTTP
             },
           };
 
           // Handle the MCP request
-          await this.handleMcpRequest(request, mockTransport);
+          this.handleMcpRequest(request, mockTransport);
         } catch (error) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ 
@@ -67,7 +67,7 @@ export class HttpTransport implements McpTransport {
       });
     });
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       this.httpServer!.listen(this.config.port, this.config.host, () => {
         resolve();
       });
@@ -78,7 +78,7 @@ export class HttpTransport implements McpTransport {
     });
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
     if (this.httpServer) {
       return new Promise((resolve) => {
         this.httpServer!.close(() => {
@@ -87,6 +87,7 @@ export class HttpTransport implements McpTransport {
         });
       });
     }
+    return Promise.resolve();
   }
 
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
@@ -106,7 +107,7 @@ export class HttpTransport implements McpTransport {
    * Handle MCP request through HTTP.
    * @private
    */
-  private async handleMcpRequest(request: unknown, transport: { send: (response: unknown) => void }): Promise<void> {
+  private handleMcpRequest(request: unknown, transport: { send: (response: unknown) => void }): void {
     if (!this.mcpServer) {
       throw new Error('MCP server not initialized');
     }
@@ -147,7 +148,7 @@ export class HttpTransport implements McpTransport {
     } catch (error) {
       transport.send({
         jsonrpc: '2.0',
-        id: (request as { id?: unknown }).id,
+        id: request && typeof request === 'object' ? (request as { id?: unknown }).id : undefined,
         error: {
           code: -32603,
           message: 'Internal error',

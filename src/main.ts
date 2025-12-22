@@ -1,10 +1,6 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { IncomingMessage } from 'http';
 
-// Load environment variables from .env file
-import { config } from 'dotenv';
-config();
-
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -13,17 +9,19 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 import fastifyCompress from '@fastify/compress';
 import helmet from '@fastify/helmet';
+import { config } from 'dotenv';
 import { Logger } from 'nestjs-pino';
 import { v4 as uuidv4 } from 'uuid';
 // import { patchNestJsSwagger } from 'nestjs-zod';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { CorrelationIdInterceptor } from './common/interceptors/correlation-id.interceptor';
 import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
-import { ContextLoggerService } from './common/services/context-logger.service';
 import { McpConfig } from './config/mcp.config';
 import { ROUTES } from './config/routes.config';
+
+// Load environment variables from .env file
+config();
 
 /**
  * Bootstrap function that initializes and starts the NestJS application.
@@ -196,7 +194,7 @@ export async function bootstrap(): Promise<void> {
   const mcpConfig = configService.get<McpConfig>('mcp');
   if (mcpConfig?.enabled) {
     let transportInfo: string;
-    let mcpUrls: string[] = [];
+    const mcpUrls: string[] = [];
 
     switch (mcpConfig.transport) {
       case 'stdio':

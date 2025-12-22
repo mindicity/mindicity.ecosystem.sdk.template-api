@@ -53,6 +53,16 @@ export class TransportFactory {
    * @throws Error if configuration is invalid
    */
   static validateConfig(config: TransportConfig): void {
+    this.validateBasicConfig(config);
+    this.validateNetworkConfig(config);
+    this.validateServerInfo(config);
+  }
+
+  /**
+   * Validate basic transport configuration.
+   * @private
+   */
+  private static validateBasicConfig(config: TransportConfig): void {
     if (!config.transport) {
       throw new Error('Transport type is required');
     }
@@ -60,8 +70,14 @@ export class TransportFactory {
     if (!this.getSupportedTransports().includes(config.transport)) {
       throw new Error(`Unsupported transport type: ${config.transport}`);
     }
+  }
 
-    if ((config.transport === 'http' || config.transport === 'sse')) {
+  /**
+   * Validate network-related configuration for HTTP/SSE transports.
+   * @private
+   */
+  private static validateNetworkConfig(config: TransportConfig): void {
+    if (config.transport === 'http' || config.transport === 'sse') {
       if (!config.port) {
         throw new Error(`${config.transport.toUpperCase()} transport requires port configuration`);
       }
@@ -74,7 +90,13 @@ export class TransportFactory {
         throw new Error('Port must be between 1 and 65535');
       }
     }
+  }
 
+  /**
+   * Validate server information configuration.
+   * @private
+   */
+  private static validateServerInfo(config: TransportConfig): void {
     if (!config.serverName || config.serverName.trim() === '') {
       throw new Error('Server name is required');
     }

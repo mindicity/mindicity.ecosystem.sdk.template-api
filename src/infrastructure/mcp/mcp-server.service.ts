@@ -1,10 +1,12 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 import { McpConfig } from '../../config/mcp.config';
+
 import { McpTransport } from './transports/base-transport';
 import { TransportFactory } from './transports/transport-factory';
 
@@ -135,7 +137,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     if (!this.server) return;
 
     // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    this.server.setRequestHandler(ListToolsRequestSchema, () => {
       this.logger.trace('MCP tools list requested');
       
       return {
@@ -172,20 +174,20 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler(CallToolRequestSchema, (request) => {
       const { name, arguments: args } = request.params;
       
       this.logger.trace('MCP tool called', { toolName: name, arguments: args });
 
       switch (name) {
         case 'get_api_info':
-          return await this.handleGetApiInfo();
+          return this.handleGetApiInfo();
         
         case 'get_api_health':
-          return await this.handleGetApiHealth();
+          return this.handleGetApiHealth();
         
         case 'list_api_endpoints':
-          return await this.handleListApiEndpoints();
+          return this.handleListApiEndpoints();
         
         default:
           throw new Error(`Unknown tool: ${name}`);
@@ -209,18 +211,9 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
    * Handle get_api_info tool call.
    * @private
    */
-  private async handleGetApiInfo(): Promise<{ content: Array<{ type: string; text: string }> }> {
+  private handleGetApiInfo(): { content: Array<{ type: string; text: string }> } {
     const appConfig = this.configService.get('app');
-    
-    const apiInfo = {
-      name: this.mcpConfig.serverName,
-      version: this.mcpConfig.serverVersion,
-      port: appConfig?.port || 3232,
-      apiPrefix: appConfig?.apiPrefix || '/mcapi',
-      apiScopePrefix: appConfig?.apiScopePrefix || '',
-      corsEnabled: appConfig?.corsEnabled || true,
-      swaggerUrl: `${appConfig?.swaggerHostname || 'http://localhost:3232'}${appConfig?.apiPrefix || '/mcapi'}/docs/swagger/ui`,
-    };
+    const apiInfo = this.buildApiInfo(appConfig);
 
     return {
       content: [
@@ -233,10 +226,64 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Build API information object.
+   * @private
+   */
+  private buildApiInfo(appConfig: unknown): Record<string, unknown> {
+    const config = this.extractAppConfig(appConfig);
+    
+    return {
+      name: this.mcpConfig.serverName,
+      version: this.mcpConfig.serverVersion,
+      port: config.port,
+      apiPrefix: config.apiPrefix,
+      apiScopePrefix: config.apiScopePrefix,
+      corsEnabled: config.corsEnabled,
+      swaggerUrl: `${config.swaggerHostname}${config.apiPrefix}/docs/swagger/ui`,
+    };
+  }
+
+  /**
+   * Extract and normalize app configuration values.
+   * @private
+   */
+  private extractAppConfig(appConfig: unknown): {
+    port: number;
+    apiPrefix: string;
+    apiScopePrefix: string;
+    corsEnabled: boolean;
+    swaggerHostname: string;
+  } {
+    const config = appConfig as {
+      port?: number;
+      apiPrefix?: string;
+      apiScopePrefix?: string;
+      corsEnabled?: boolean;
+      swaggerHostname?: string;
+    };
+
+    return {
+      port: this.getConfigValue(config?.port, 3232),
+      apiPrefix: this.getConfigValue(config?.apiPrefix, '/mcapi'),
+      apiScopePrefix: this.getConfigValue(config?.apiScopePrefix, ''),
+      corsEnabled: this.getConfigValue(config?.corsEnabled, true),
+      swaggerHostname: this.getConfigValue(config?.swaggerHostname, 'http://localhost:3232'),
+    };
+  }
+
+  /**
+   * Get configuration value with fallback.
+   * @private
+   */
+  private getConfigValue<T>(value: T | undefined, defaultValue: T): T {
+    return value ?? defaultValue;
+  }
+
+  /**
    * Handle get_api_health tool call.
    * @private
    */
-  private async handleGetApiHealth(): Promise<{ content: Array<{ type: string; text: string }> }> {
+  private handleGetApiHealth(): { content: Array<{ type: string; text: string }> } {
     // This would typically make an actual health check call to the API
     const healthStatus = {
       status: 'healthy',
@@ -259,9 +306,9 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
    * Handle list_api_endpoints tool call.
    * @private
    */
-  private async handleListApiEndpoints(): Promise<{ content: Array<{ type: string; text: string }> }> {
+  private handleListApiEndpoints(): { content: Array<{ type: string; text: string }> } {
     const appConfig = this.configService.get('app');
-    const baseUrl = `${appConfig?.apiPrefix || '/mcapi'}${appConfig?.apiScopePrefix || ''}`;
+    const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
     
     const endpoints = [
       {
@@ -276,7 +323,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
       },
       {
         method: 'GET',
-        path: `${appConfig?.apiPrefix || '/mcapi'}/docs/swagger/ui`,
+        path: `${appConfig?.apiPrefix ?? '/mcapi'}/docs/swagger/ui`,
         description: 'Swagger API documentation',
       },
     ];

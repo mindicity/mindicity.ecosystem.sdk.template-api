@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 import mcpConfig from '../../config/mcp.config';
+
 import { McpServerService } from './mcp-server.service';
 import { McpModule } from './mcp.module';
 
@@ -41,7 +42,7 @@ describe('McpModule', () => {
   });
 
   it('should export McpServerService', () => {
-    const exports = Reflect.getMetadata('exports', McpModule) || [];
+    const exports = Reflect.getMetadata('exports', McpModule) ?? [];
     expect(exports).toContain(McpServerService);
   });
 });

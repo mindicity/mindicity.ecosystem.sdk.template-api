@@ -86,8 +86,11 @@ export default registerAs('mcp', (): McpConfig => {
         `${issue.path.join('.')}: ${issue.message}`
       ).join(', ');
       
+      // eslint-disable-next-line no-console
       console.error(`❌ MCP Configuration validation failed: ${errorMessages}`);
+      // eslint-disable-next-line no-console
       console.error('🔧 Please check your environment variables and fix the configuration.');
+      // eslint-disable-next-line no-console
       console.error('💥 Application startup aborted due to invalid MCP configuration.');
       
       // Throw error to stop application startup

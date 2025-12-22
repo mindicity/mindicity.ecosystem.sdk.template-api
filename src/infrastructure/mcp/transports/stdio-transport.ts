@@ -17,9 +17,10 @@ export class StdioTransport implements McpTransport {
     await server.connect(this.transport);
   }
 
-  async disconnect(): Promise<void> {
+  disconnect(): Promise<void> {
     // StdioServerTransport doesn't have explicit cleanup
     this.transport = null;
+    return Promise.resolve();
   }
 
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
