@@ -1,6 +1,10 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { IncomingMessage } from 'http';
 
+// Load environment variables from .env file
+import { config } from 'dotenv';
+config();
+
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -15,7 +19,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { CorrelationIdInterceptor } from './common/interceptors/correlation-id.interceptor';
 import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
+import { ContextLoggerService } from './common/services/context-logger.service';
+import { McpConfig } from './config/mcp.config';
 import { ROUTES } from './config/routes.config';
 
 /**
@@ -184,6 +191,45 @@ export async function bootstrap(): Promise<void> {
 
   // Start server
   await app.listen(port, '0.0.0.0');
+
+  // Log MCP server information if enabled
+  const mcpConfig = configService.get<McpConfig>('mcp');
+  if (mcpConfig?.enabled) {
+    let transportInfo: string;
+    let mcpUrls: string[] = [];
+
+    switch (mcpConfig.transport) {
+      case 'stdio':
+        transportInfo = 'stdio transport';
+        break;
+      case 'http':
+        transportInfo = `http transport (${mcpConfig.host}:${mcpConfig.port})`;
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);
+        break;
+      case 'sse':
+        transportInfo = `sse transport (${mcpConfig.host}:${mcpConfig.port})`;
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp/events`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp/info`);
+        break;
+      default:
+        // This should never happen due to Zod validation, but TypeScript requires it
+        transportInfo = `${mcpConfig.transport} transport (${mcpConfig.host}:${mcpConfig.port})`;
+        logger.warn(`Unknown MCP transport type: ${mcpConfig.transport}`);
+    }
+    
+    logger.log(`🤖 MCP Server: ${transportInfo} (name: ${mcpConfig.serverName})`);
+    
+    // Log MCP URLs for HTTP/SSE transports
+    if (mcpUrls.length > 0) {
+      mcpUrls.forEach((url, index) => {
+        const label = mcpConfig.transport === 'sse' 
+          ? ['📡 MCP Events', '📨 MCP Requests', 'ℹ️  MCP Info'][index]
+          : '📨 MCP Endpoint';
+        logger.log(`   ${label}: ${url}`);
+      });
+    }
+  }
 
   const specsPath = docsPath.replace('/ui', '/specs');
   logger.log(`🚀 Application is running on: http://localhost:${port}${apiPrefix}`);

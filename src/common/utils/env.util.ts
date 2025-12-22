@@ -3,6 +3,9 @@
  * Provides type-safe parsing of environment variables with proper defaults.
  */
 export class EnvUtil {
+  // Cache per evitare log duplicati
+  private static loggedErrors = new Set<string>();
+
   /**
    * Parses a boolean value from environment variables.
    * Correctly handles string values like "false", "0", "no", etc.
@@ -126,11 +129,12 @@ export class EnvUtil {
   }
 
   /**
-   * Parses an enum value from environment variables.
+   * Parses an enum value from environment variables with detailed validation.
    * 
    * @param value - The environment variable value
    * @param allowedValues - Array of allowed enum values
    * @param defaultValue - Default value if parsing fails or value is not in allowed values
+   * @param variableName - Name of the environment variable (for error logging)
    * @returns Parsed enum value
    * 
    * @example
@@ -139,26 +143,51 @@ export class EnvUtil {
    * const level = EnvUtil.parseEnum(
    *   process.env.LOG_LEVEL, 
    *   ['trace', 'debug', 'info', 'warn', 'error'], 
-   *   'info'
+   *   'info',
+   *   'LOG_LEVEL'
    * ); // returns 'debug'
    * 
    * // Environment: NODE_ENV=invalid
    * const env = EnvUtil.parseEnum(
    *   process.env.NODE_ENV, 
    *   ['development', 'production', 'test'], 
-   *   'development'
-   * ); // returns 'development'
+   *   'development',
+   *   'NODE_ENV'
+   * ); // returns 'development' and logs warning
    * ```
    */
   static parseEnum<T extends string>(
     value: string | undefined, 
     allowedValues: T[], 
-    defaultValue: T
+    defaultValue: T,
+    variableName?: string
   ): T {
-    if (value === undefined || value === null) return defaultValue;
+    if (value === undefined || value === null) {
+      if (variableName) {
+        const logKey = `${variableName}_undefined`;
+        if (!EnvUtil.loggedErrors.has(logKey)) {
+          console.warn(`⚠️  Environment variable ${variableName} is not set, using default: ${defaultValue}`);
+          EnvUtil.loggedErrors.add(logKey);
+        }
+      }
+      return defaultValue;
+    }
     
     const trimmed = value.toString().trim() as T;
-    return allowedValues.includes(trimmed) ? trimmed : defaultValue;
+    
+    if (!allowedValues.includes(trimmed)) {
+      if (variableName) {
+        const logKey = `${variableName}_${trimmed}`;
+        if (!EnvUtil.loggedErrors.has(logKey)) {
+          const errorMsg = `❌ Invalid value for ${variableName}: "${trimmed}". Allowed values: [${allowedValues.join(', ')}]. Using default: ${defaultValue}`;
+          console.error(errorMsg);
+          EnvUtil.loggedErrors.add(logKey);
+        }
+      }
+      return defaultValue;
+    }
+    
+    return trimmed;
   }
 
   /**

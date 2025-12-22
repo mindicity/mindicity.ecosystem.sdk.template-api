@@ -21,6 +21,7 @@
     "test:cov": "jest --coverage",
     "test:watch": "jest --watch",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:mcp": "node scripts/test-mcp.js",
     "prepare": "husky"
   },
   "keywords": [
@@ -36,6 +37,7 @@
     "@fastify/compress": "^8.3.0",
     "@fastify/helmet": "^13.0.2",
     "@fastify/static": "^8.3.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
     "@nestjs/common": "^11.1.9",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.9",
@@ -56,7 +58,9 @@
     "reflect-metadata": "^0.2.2",
     "rotating-file-stream": "^3.2.7",
     "rxjs": "^7.8.2",
+    "sse-ts": "^0.4.0",
     "uuid": "^13.0.0",
+    "ws": "^8.18.0",
     "zod": "^4.1.13"
   },
   "lint-staged": {
