@@ -53,7 +53,7 @@ export class TransportFactory {
           throw new Error('SSE transport requires port and host configuration');
         }
         // SSE transport no longer requires dependencies (simplified implementation)
-        return new SseTransport(config, dependencies || {});
+        return new SseTransport(config, dependencies ?? {});
       
       default:
         throw new Error(`Unsupported transport type: ${config.transport}`);

@@ -581,7 +581,6 @@ describe('AppModule', () => {
       expect(validateFunction(validConfig)).toBe(validConfig);
 
       // Test error handling by mocking EnvUtil.parseNumber to return invalid value
-      const originalParseNumber = EnvUtil.parseNumber;
       try {
         // Mock parseNumber to return an invalid port value that will fail Zod validation
         jest.spyOn(EnvUtil, 'parseNumber').mockReturnValue(99999); // Port > 65535 will fail validation

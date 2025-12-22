@@ -146,12 +146,9 @@ describe('TransportFactory', () => {
 
     it('should demonstrate scalability with multiple services', () => {
       // This test shows how the pattern scales without changing the factory signature
-      const _mockUserService = { getCurrentUser: jest.fn() };
-      const _mockNotificationService = { sendNotification: jest.fn() };
-      
       const scalableDependencies = createTransportDependencies({
         healthService: mockHealthService,
-        // In the future, these would be uncommented:
+        // In the future, additional services would be added here:
         // userService: mockUserService,
         // notificationService: mockNotificationService,
       });

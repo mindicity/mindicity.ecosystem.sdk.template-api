@@ -487,7 +487,7 @@ describe('HttpTransport', () => {
 
       // Mock the fetchOpenApiResource method
       (transport as any).fetchOpenApiResource = jest.fn().mockImplementation(
-        async (uri: string, id: unknown, transport: { send: (response: unknown) => void }): Promise<void> => {
+        (uri: string, id: unknown, transport: { send: (response: unknown) => void }): void => {
           transport.send({
             jsonrpc: '2.0',
             id,
@@ -615,7 +615,7 @@ describe('HttpTransport', () => {
 
       // Override the mock to simulate an error
       (transport as any).fetchOpenApiResource = jest.fn().mockImplementation(
-        async (uri: string, id: unknown, transport: { send: (response: unknown) => void }): Promise<void> => {
+        (uri: string, id: unknown, transport: { send: (response: unknown) => void }): void => {
           transport.send({
             jsonrpc: '2.0',
             id,

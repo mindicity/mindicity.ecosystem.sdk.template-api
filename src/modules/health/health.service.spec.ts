@@ -7,8 +7,6 @@ import { HealthService } from './health.service';
 
 describe('HealthService', () => {
   let service: HealthService;
-  let _configService: ConfigService;
-  let _loggerService: ContextLoggerService;
 
   const mockConfigService = {
     get: jest.fn(),
@@ -31,8 +29,6 @@ describe('HealthService', () => {
     }).compile();
 
     service = module.get<HealthService>(HealthService);
-    _configService = module.get<ConfigService>(ConfigService);
-    _loggerService = module.get<ContextLoggerService>(ContextLoggerService);
   });
 
   afterEach(() => {

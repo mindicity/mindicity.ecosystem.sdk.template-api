@@ -339,7 +339,7 @@ describe('McpServerService', () => {
       expect(errorResponse).toHaveProperty('suggestion');
     });
 
-    it('should generate dynamic tools correctly', async () => {
+    it('should generate dynamic tools correctly', () => {
       const tools = (service as any).generateDynamicTools();
 
       expect(Array.isArray(tools)).toBe(true);
@@ -354,7 +354,7 @@ describe('McpServerService', () => {
       expect(Array.isArray(healthTool.inputSchema.required)).toBe(true);
     });
 
-    it('should generate dynamic resources correctly', async () => {
+    it('should generate dynamic resources correctly', () => {
       const resources = (service as any).generateDynamicResources();
 
       expect(Array.isArray(resources)).toBe(true);
@@ -367,7 +367,7 @@ describe('McpServerService', () => {
       expect(swaggerResource.mimeType).toBe('application/json');
     });
 
-    it('should handle dynamic tool calls', async () => {
+    it('should handle dynamic tool calls', () => {
       const result = (service as any).handleDynamicToolCall('get_api_health', {});
 
       expect(result).toHaveProperty('content');
@@ -379,13 +379,13 @@ describe('McpServerService', () => {
       expect(mcpResponse.data).toHaveProperty('status', 'healthy');
     });
 
-    it('should handle unknown tool calls', async () => {
+    it('should handle unknown tool calls', () => {
       expect(() => {
         (service as any).handleDynamicToolCall('unknown_tool', {});
       }).toThrow('Unknown tool: unknown_tool');
     });
 
-    it('should handle API endpoint calls', async () => {
+    it('should handle API endpoint calls', () => {
       const result = (service as any).callApiEndpoint('GET', '/mcapi/test/health', {});
 
       expect(result).toHaveProperty('content');
@@ -397,7 +397,7 @@ describe('McpServerService', () => {
       expect(mcpResponse.data).toHaveProperty('status', 'healthy');
     });
 
-    it('should handle unknown API endpoints', async () => {
+    it('should handle unknown API endpoints', () => {
       const result = (service as any).callApiEndpoint('GET', '/unknown/endpoint', {});
 
       expect(result).toHaveProperty('content');
@@ -623,7 +623,7 @@ describe('McpServerService', () => {
   });
 
   describe('setup methods', () => {
-    it('should setup dynamic tool handlers', async () => {
+    it('should setup dynamic tool handlers', () => {
       const mockServer = {
         setRequestHandler: jest.fn(),
       };
@@ -636,7 +636,7 @@ describe('McpServerService', () => {
       expect(loggerService.debug).toHaveBeenCalledWith('Dynamic MCP tool and resource handlers configured');
     });
 
-    it('should not setup handlers when server is null', async () => {
+    it('should not setup handlers when server is null', () => {
       (service as any).server = null;
 
       (service as any).setupDynamicToolHandlers();
@@ -648,14 +648,14 @@ describe('McpServerService', () => {
 
   describe('request handler implementations', () => {
     let mockServer: any;
-    let toolsListHandler: Function;
-    let toolsCallHandler: Function;
-    let resourcesListHandler: Function;
-    let resourcesReadHandler: Function;
+    let toolsListHandler: (request: any) => any;
+    let toolsCallHandler: (request: any) => any;
+    let resourcesListHandler: (request: any) => any;
+    let resourcesReadHandler: (request: any) => any;
 
     beforeEach(() => {
       mockServer = {
-        setRequestHandler: jest.fn((schema: any, handler: Function) => {
+        setRequestHandler: jest.fn((schema: any, handler: (request: any) => any) => {
           // Store handlers based on the schema method or a pattern
           if (schema === 'ListToolsRequestSchema' || (typeof schema === 'object' && schema.method === 'tools/list')) {
             toolsListHandler = handler;
@@ -680,7 +680,7 @@ describe('McpServerService', () => {
     });
 
     it('should handle tools/list requests', async () => {
-      const result = await toolsListHandler();
+      const result = await toolsListHandler({});
 
       expect(result).toHaveProperty('tools');
       expect(Array.isArray(result.tools)).toBe(true);
@@ -705,7 +705,7 @@ describe('McpServerService', () => {
     });
 
     it('should handle resources/list requests', async () => {
-      const result = await resourcesListHandler();
+      const result = await resourcesListHandler({});
 
       expect(result).toHaveProperty('resources');
       expect(Array.isArray(result.resources)).toBe(true);
@@ -741,6 +741,7 @@ describe('McpServerService', () => {
       // Spy on the service method and make it throw an error
       const originalMethod = (service as any).fetchRealSwaggerResource;
       jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
+        await Promise.resolve(); // Add await expression
         const uri = args[0] as string;
         // Call the logger.error to simulate the error path
         (service as any).logger.error('Error fetching real Swagger resource', { 
@@ -783,6 +784,7 @@ describe('McpServerService', () => {
       // Spy on the service method and make it throw a non-Error exception
       const originalMethod = (service as any).fetchRealSwaggerResource;
       jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
+        await Promise.resolve(); // Add await expression
         const uri = args[0] as string;
         // Call the logger.error to simulate the error path
         (service as any).logger.error('Error fetching real Swagger resource', { 
@@ -814,6 +816,7 @@ describe('McpServerService', () => {
       // Mock the service method to simulate file not found scenario
       const originalMethod = (service as any).fetchRealSwaggerResource;
       jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
+        await Promise.resolve(); // Add await expression
         const uri = args[0] as string;
         // Simulate the warn log for file not found using the service's logger
         (service as any).logger.warn('OpenAPI file not found, generating minimal specification', { 
@@ -892,6 +895,7 @@ describe('McpServerService', () => {
       // Mock the service method to simulate file not found scenario with null app config
       const originalMethod = (service as any).fetchRealSwaggerResource;
       jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
+        await Promise.resolve(); // Add await expression
         const uri = args[0] as string;
         const appConfig = (service as any).configService.get('app');
         const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
@@ -955,6 +959,7 @@ describe('McpServerService', () => {
       // Mock the service method to simulate file not found scenario with custom app config
       const originalMethod = (service as any).fetchRealSwaggerResource;
       jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
+        await Promise.resolve(); // Add await expression
         const uri = args[0] as string;
         const appConfig = (service as any).configService.get('app');
         const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
@@ -1011,6 +1016,7 @@ describe('McpServerService', () => {
       // Mock the service method to simulate file exists scenario
       const originalMethod = (service as any).fetchRealSwaggerResource;
       jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
+        await Promise.resolve(); // Add await expression
         const uri = args[0] as string;
         // Simulate the debug log for file found
         (service as any).logger.debug('Swagger specification loaded from file', { 

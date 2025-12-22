@@ -139,7 +139,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     const appConfig = this.configService.get('app');
     const dependencies = createTransportDependencies({
       healthService: this.healthService,
-      appConfig: appConfig,
+      appConfig,
       // Future services can be added here without breaking existing code:
       // userService: this.userService,
       // notificationService: this.notificationService,
@@ -231,7 +231,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Handle resource reads - fetch API documentation content
-    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    this.server.setRequestHandler(ReadResourceRequestSchema, (request) => {
       const { uri } = request.params;
       
       this.logger.trace('MCP resource read requested', { uri });

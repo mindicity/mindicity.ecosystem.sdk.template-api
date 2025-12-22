@@ -12,7 +12,6 @@ import { HealthService } from './health.service';
  */
 describe('Health Controller Property Tests', () => {
   let controller: HealthController;
-  let _healthService: HealthService;
 
   const mockHealthService = {
     getSimpleHealthStatus: jest.fn(),
@@ -28,7 +27,6 @@ describe('Health Controller Property Tests', () => {
     }).compile();
 
     controller = module.get<HealthController>(HealthController);
-    _healthService = module.get<HealthService>(HealthService);
   });
 
   afterEach(() => {

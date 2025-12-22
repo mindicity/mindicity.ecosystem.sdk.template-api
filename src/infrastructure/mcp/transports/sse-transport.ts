@@ -177,41 +177,33 @@ export class SseTransport implements McpTransport {
     });
 
     req.on('end', (): void => {
-      (async (): Promise<void> => {
-        try {
-          const request = JSON.parse(body);
-          const response = this.processMcpRequest(request);
-          
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(response));
+      try {
+        const request = JSON.parse(body);
+        const response = this.processMcpRequest(request);
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(response));
 
-          // Broadcast the request/response to SSE clients
-          this.broadcastToClients('mcp-request', {
-            request,
-            response,
-            timestamp: new Date().toISOString(),
-          });
-        } catch (_error) {
-          const errorResponse = {
-            jsonrpc: '2.0',
-            id: null,
-            error: {
-              code: -32700,
-              message: 'Parse error',
-              data: _error instanceof Error ? _error.message : 'Unknown error',
-            },
-          };
+        // Broadcast the request/response to SSE clients
+        this.broadcastToClients('mcp-request', {
+          request,
+          response,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_error) {
+        const errorResponse = {
+          jsonrpc: '2.0',
+          id: null,
+          error: {
+            code: -32700,
+            message: 'Parse error',
+            data: _error instanceof Error ? _error.message : 'Unknown error',
+          },
+        };
 
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(errorResponse));
-        }
-      })().catch((error) => {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-          error: 'Internal server error',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        }));
-      });
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(errorResponse));
+      }
     });
   }
 
