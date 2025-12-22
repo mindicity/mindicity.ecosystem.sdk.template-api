@@ -34,6 +34,7 @@ export class HealthService {
   getHealthStatus(): HealthResponseDto {
     this.logger.trace('getHealthStatus()');
 
+     
     const appConfig = this.configService.get('app');
     const packageInfo = this.configService.get('package');
 

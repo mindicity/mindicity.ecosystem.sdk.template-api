@@ -1,4 +1,4 @@
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AppModule } from './app.module';
@@ -485,8 +485,15 @@ describe('AppModule', () => {
       };
 
       // Simulate the useFactory function
-      const useFactory = (configService: any) => {
-        const logConfig = configService.get('log');
+      const useFactory = (configService: unknown) => {
+        const logConfig = (configService as { get: (key: string) => unknown }).get('log') as {
+          transports: string;
+          prefix: string;
+          fileMaxSize: string;
+          fileFrequency: string;
+          prettyPrint: boolean;
+          level: string;
+        };
 
         const transport = createPinoTransportsWithRotation(logConfig.transports, {
           prefix: logConfig.prefix,

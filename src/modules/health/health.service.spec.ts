@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 
@@ -7,8 +7,8 @@ import { HealthService } from './health.service';
 
 describe('HealthService', () => {
   let service: HealthService;
-  let configService: ConfigService;
-  let loggerService: ContextLoggerService;
+  let _configService: ConfigService;
+  let _loggerService: ContextLoggerService;
 
   const mockConfigService = {
     get: jest.fn(),
@@ -31,8 +31,8 @@ describe('HealthService', () => {
     }).compile();
 
     service = module.get<HealthService>(HealthService);
-    configService = module.get<ConfigService>(ConfigService);
-    loggerService = module.get<ContextLoggerService>(ContextLoggerService);
+    _configService = module.get<ConfigService>(ConfigService);
+    _loggerService = module.get<ContextLoggerService>(ContextLoggerService);
   });
 
   afterEach(() => {

@@ -160,34 +160,42 @@ export class SseTransport implements McpTransport {
       body += chunk.toString();
     });
 
-    req.on('end', async () => {
-      try {
-        const request = JSON.parse(body);
-        const response = await this.processMcpRequest(request);
-        
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(response));
+    req.on('end', (): void => {
+      (async (): Promise<void> => {
+        try {
+          const request = JSON.parse(body);
+          const response = await this.processMcpRequest(request);
+          
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(response));
 
-        // Broadcast the request/response to SSE clients
-        this.broadcastToClients('mcp-request', {
-          request,
-          response,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (_error) {
-        const errorResponse = {
-          jsonrpc: '2.0',
-          id: null,
-          error: {
-            code: -32700,
-            message: 'Parse error',
-            data: _error instanceof Error ? _error.message : 'Unknown error',
-          },
-        };
+          // Broadcast the request/response to SSE clients
+          this.broadcastToClients('mcp-request', {
+            request,
+            response,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (_error) {
+          const errorResponse = {
+            jsonrpc: '2.0',
+            id: null,
+            error: {
+              code: -32700,
+              message: 'Parse error',
+              data: _error instanceof Error ? _error.message : 'Unknown error',
+            },
+          };
 
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(errorResponse));
-      }
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(errorResponse));
+        }
+      })().catch((error) => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          error: 'Internal server error',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }));
+      });
     });
   }
 
@@ -308,111 +316,155 @@ export class SseTransport implements McpTransport {
    * Process MCP request and return response.
    * @private
    */
-  private async processMcpRequest(request: unknown): Promise<unknown> {
+  private processMcpRequest(request: unknown): unknown {
     const req = request as { method?: string; id?: unknown; params?: unknown };
     
-    if (req.method === 'initialize') {
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        result: {
-          protocolVersion: '2024-11-05',
-          capabilities: {
-            tools: {},
-            resources: {},
-          },
-          serverInfo: {
-            name: this.config.serverName,
-            version: this.config.serverVersion,
-          },
-        },
-      };
-    } else if (req.method === 'tools/list') {
-      // Handle tools/list request - only health endpoint
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        result: {
-          tools: [
-            {
-              name: 'get_api_health',
-              description: 'Check the health status of the API server',
-              inputSchema: {
-                type: 'object',
-                properties: {},
-                required: [],
-              },
-            },
-          ],
-        },
-      };
-    } else if (req.method === 'tools/call') {
-      // Handle tools/call request - only health endpoint
-      const params = req.params as { name?: string; arguments?: unknown };
-      const toolName = params?.name;
-      
-      if (toolName === 'get_api_health') {
-        const healthData = this.dependencies.healthService!.getHealthStatus();
-
-        return {
-          jsonrpc: '2.0',
-          id: req.id,
-          result: {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(healthData, null, 2),
-              },
-            ],
-          },
-        };
-      } else {
-        return {
-          jsonrpc: '2.0',
-          id: req.id,
-          error: {
-            code: -32601,
-            message: `Unknown tool: ${toolName}`,
-          },
-        };
-      }
-    } else if (req.method === 'resources/list') {
-      // Handle resources/list request - only specs, no UI
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        result: {
-          resources: [
-            {
-              uri: 'swagger://docs/project/swagger/specs',
-              name: 'API Swagger Specification',
-              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-              mimeType: 'application/json',
-            },
-          ],
-        },
-      };
-    } else if (req.method === 'resources/read') {
-      // Handle resources/read request
-      const params = req.params as { uri?: string };
-      const uri = params?.uri;
-      
-      if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
-        // Read the real Swagger JSON specification from the generated document
-        return await this.fetchRealSwaggerResource(uri, req.id);
-      } else {
-        return {
-          jsonrpc: '2.0',
-          id: req.id,
-          error: {
-            code: -32601,
-            message: `Unknown resource URI: ${uri}`,
-          },
-        };
-      }
+    switch (req.method) {
+      case 'initialize':
+        return this.processInitialize(req);
+      case 'tools/list':
+        return this.processToolsList(req);
+      case 'tools/call':
+        return this.processToolsCall(req);
+      case 'resources/list':
+        return this.processResourcesList(req);
+      case 'resources/read':
+        return this.processResourcesRead(req);
+      default:
+        return this.processUnknownMethod(req);
     }
+  }
 
-    // For other methods, return not implemented
+  /**
+   * Process initialize request.
+   * @private
+   */
+  private processInitialize(req: { id?: unknown }): unknown {
+    return {
+      jsonrpc: '2.0',
+      id: req.id,
+      result: {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: {},
+          resources: {},
+        },
+        serverInfo: {
+          name: this.config.serverName,
+          version: this.config.serverVersion,
+        },
+      },
+    };
+  }
+
+  /**
+   * Process tools/list request.
+   * @private
+   */
+  private processToolsList(req: { id?: unknown }): unknown {
+    return {
+      jsonrpc: '2.0',
+      id: req.id,
+      result: {
+        tools: [
+          {
+            name: 'get_api_health',
+            description: 'Check the health status of the API server',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          },
+        ],
+      },
+    };
+  }
+
+  /**
+   * Process tools/call request.
+   * @private
+   */
+  private processToolsCall(req: { id?: unknown; params?: unknown }): unknown {
+    const params = req.params as { name?: string; arguments?: unknown };
+    const toolName = params?.name;
+    
+    if (toolName === 'get_api_health') {
+      const healthData = this.dependencies.healthService!.getHealthStatus();
+
+      return {
+        jsonrpc: '2.0',
+        id: req.id,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(healthData, null, 2),
+            },
+          ],
+        },
+      };
+    } else {
+      return {
+        jsonrpc: '2.0',
+        id: req.id,
+        error: {
+          code: -32601,
+          message: `Unknown tool: ${toolName}`,
+        },
+      };
+    }
+  }
+
+  /**
+   * Process resources/list request.
+   * @private
+   */
+  private processResourcesList(req: { id?: unknown }): unknown {
+    return {
+      jsonrpc: '2.0',
+      id: req.id,
+      result: {
+        resources: [
+          {
+            uri: 'swagger://docs/project/swagger/specs',
+            name: 'API Swagger Specification',
+            description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+            mimeType: 'application/json',
+          },
+        ],
+      },
+    };
+  }
+
+  /**
+   * Process resources/read request.
+   * @private
+   */
+  private processResourcesRead(req: { id?: unknown; params?: unknown }): unknown {
+    const params = req.params as { uri?: string };
+    const uri = params?.uri;
+    
+    if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
+      // Read the real Swagger JSON specification from the generated document
+      return this.fetchRealSwaggerResource(uri, req.id);
+    } else {
+      return {
+        jsonrpc: '2.0',
+        id: req.id,
+        error: {
+          code: -32601,
+          message: `Unknown resource URI: ${uri}`,
+        },
+      };
+    }
+  }
+
+  /**
+   * Process unknown method request.
+   * @private
+   */
+  private processUnknownMethod(req: { method?: string; id?: unknown }): unknown {
     return {
       jsonrpc: '2.0',
       id: req.id,

@@ -131,11 +131,11 @@ describe('BaseException', () => {
     // Properties are marked as readonly in TypeScript
     // but JavaScript allows assignment (this is expected behavior)
     const originalId = exception.id;
-    (exception as any).id = 'new-id';
+    (exception as unknown as { id: string }).id = 'new-id';
     expect(exception.id).toBe('new-id'); // JavaScript allows this
     
     // Restore original for consistency
-    (exception as any).id = originalId;
+    (exception as unknown as { id: string }).id = originalId;
     expect(exception.id).toBe(originalId);
   });
 

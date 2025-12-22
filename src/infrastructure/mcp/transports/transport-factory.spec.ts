@@ -1,9 +1,10 @@
 import { HealthService } from '../../../modules/health/health.service';
+
 import { HttpTransport } from './http-transport';
 import { SseTransport } from './sse-transport';
 import { StdioTransport } from './stdio-transport';
-import { TransportFactory } from './transport-factory';
 import { createTransportDependencies, OptionalTransportDependencies } from './transport-dependencies';
+import { TransportFactory } from './transport-factory';
 
 describe('TransportFactory', () => {
   let mockHealthService: jest.Mocked<HealthService>;
@@ -144,8 +145,8 @@ describe('TransportFactory', () => {
 
     it('should demonstrate scalability with multiple services', () => {
       // This test shows how the pattern scales without changing the factory signature
-      const mockUserService = { getCurrentUser: jest.fn() };
-      const mockNotificationService = { sendNotification: jest.fn() };
+      const _mockUserService = { getCurrentUser: jest.fn() };
+      const _mockNotificationService = { sendNotification: jest.fn() };
       
       const scalableDependencies = createTransportDependencies({
         healthService: mockHealthService,

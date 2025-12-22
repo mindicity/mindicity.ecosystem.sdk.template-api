@@ -56,30 +56,38 @@ export class HttpTransport implements McpTransport {
         body += chunk.toString();
       });
 
-      req.on('end', async (): Promise<void> => {
-        try {
-          const request = JSON.parse(body);
-          
-          // Create a mock transport for handling the request
-          const mockTransport = {
-            send: (response: unknown): void => {
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify(response));
-            },
-            close: (): void => {
-              // No-op for HTTP
-            },
-          };
+      req.on('end', (): void => {
+        (async (): Promise<void> => {
+          try {
+            const request = JSON.parse(body);
+            
+            // Create a mock transport for handling the request
+            const mockTransport = {
+              send: (response: unknown): void => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(response));
+              },
+              close: (): void => {
+                // No-op for HTTP
+              },
+            };
 
-          // Handle the MCP request
-          await this.handleMcpRequest(request, mockTransport);
-        } catch (error) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
+            // Handle the MCP request
+            await this.handleMcpRequest(request, mockTransport);
+          } catch (error) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              error: 'Invalid JSON request',
+              details: error instanceof Error ? error.message : 'Unknown error'
+            }));
+          }
+        })().catch((error) => {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ 
-            error: 'Invalid JSON request',
+            error: 'Internal server error',
             details: error instanceof Error ? error.message : 'Unknown error'
           }));
-        }
+        });
       });
     });
 
@@ -218,135 +226,192 @@ export class HttpTransport implements McpTransport {
     try {
       const req = request as { method?: string; params?: unknown; id?: unknown };
       
-      if (req.method === 'initialize') {
-        transport.send({
-          jsonrpc: '2.0',
-          id: req.id,
-          result: {
-            protocolVersion: '2024-11-05',
-            capabilities: {
-              tools: {},
-              resources: {},
-            },
-            serverInfo: {
-              name: this.config.serverName,
-              version: this.config.serverVersion,
-            },
-          },
-        });
-      } else if (req.method === 'tools/list') {
-        // Handle tools/list request - only health endpoint
-        transport.send({
-          jsonrpc: '2.0',
-          id: req.id,
-          result: {
-            tools: [
-              {
-                name: 'get_api_health',
-                description: 'Check the health status of the API server',
-                inputSchema: {
-                  type: 'object',
-                  properties: {},
-                  required: [],
-                },
-              },
-            ],
-          },
-        });
-      } else if (req.method === 'tools/call') {
-        // Handle tools/call request - only health endpoint
-        const params = req.params as { name?: string; arguments?: unknown };
-        const toolName = params?.name;
-        
-        if (toolName === 'get_api_health') {
-          const healthData = this.dependencies.healthService!.getHealthStatus();
-
-          transport.send({
-            jsonrpc: '2.0',
-            id: req.id,
-            result: {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(healthData, null, 2),
-                },
-              ],
-            },
-          });
-        } else {
-          transport.send({
-            jsonrpc: '2.0',
-            id: req.id,
-            error: {
-              code: -32601,
-              message: `Unknown tool: ${toolName}`,
-            },
-          });
-        }
-      } else if (req.method === 'resources/list') {
-        // Handle resources/list request - only specs, no UI
-        transport.send({
-          jsonrpc: '2.0',
-          id: req.id,
-          result: {
-            resources: [
-              {
-                uri: 'swagger://docs/project/swagger/specs',
-                name: 'API Swagger Specification',
-                description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-                mimeType: 'application/json',
-              },
-            ],
-          },
-        });
-      } else if (req.method === 'resources/read') {
-        // Handle resources/read request
-        const params = req.params as { uri?: string };
-        const uri = params?.uri;
-        
-        if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
-          // Read the real Swagger JSON specification from the generated document
-          await this.fetchRealSwaggerResource(uri, {
-            send: (response: unknown) => {
-              const resp = response as { result?: unknown; error?: unknown };
-              transport.send({
-                jsonrpc: '2.0',
-                id: req.id,
-                ...resp,
-              });
-            },
-          });
-        } else {
-          transport.send({
-            jsonrpc: '2.0',
-            id: req.id,
-            error: {
-              code: -32601,
-              message: `Unknown resource URI: ${uri}`,
-            },
-          });
-        }
-      } else {
-        // For other requests, return a not implemented response
-        transport.send({
-          jsonrpc: '2.0',
-          id: req.id,
-          error: {
-            code: -32601,
-            message: `Method not implemented in HTTP transport: ${req.method}`,
-          },
-        });
+      switch (req.method) {
+        case 'initialize':
+          this.handleInitialize(req, transport);
+          break;
+        case 'tools/list':
+          this.handleToolsList(req, transport);
+          break;
+        case 'tools/call':
+          this.handleToolsCall(req, transport);
+          break;
+        case 'resources/list':
+          this.handleResourcesList(req, transport);
+          break;
+        case 'resources/read':
+          await this.handleResourcesRead(req, transport);
+          break;
+        default:
+          this.handleUnknownMethod(req, transport);
       }
     } catch (error) {
+      this.handleError(request, transport, error);
+    }
+  }
+
+  /**
+   * Handle initialize request.
+   * @private
+   */
+  private handleInitialize(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: '2.0',
+      id: req.id,
+      result: {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: {},
+          resources: {},
+        },
+        serverInfo: {
+          name: this.config.serverName,
+          version: this.config.serverVersion,
+        },
+      },
+    });
+  }
+
+  /**
+   * Handle tools/list request.
+   * @private
+   */
+  private handleToolsList(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: '2.0',
+      id: req.id,
+      result: {
+        tools: [
+          {
+            name: 'get_api_health',
+            description: 'Check the health status of the API server',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          },
+        ],
+      },
+    });
+  }
+
+  /**
+   * Handle tools/call request.
+   * @private
+   */
+  private handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): void {
+    const params = req.params as { name?: string; arguments?: unknown };
+    const toolName = params?.name;
+    
+    if (toolName === 'get_api_health') {
+      const healthData = this.dependencies.healthService!.getHealthStatus();
+
       transport.send({
         jsonrpc: '2.0',
-        id: request && typeof request === 'object' ? (request as { id?: unknown }).id : undefined,
+        id: req.id,
+        result: {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(healthData, null, 2),
+            },
+          ],
+        },
+      });
+    } else {
+      transport.send({
+        jsonrpc: '2.0',
+        id: req.id,
         error: {
-          code: -32603,
-          message: 'Internal error',
-          data: error instanceof Error ? error.message : 'Unknown error',
+          code: -32601,
+          message: `Unknown tool: ${toolName}`,
         },
       });
     }
+  }
+
+  /**
+   * Handle resources/list request.
+   * @private
+   */
+  private handleResourcesList(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: '2.0',
+      id: req.id,
+      result: {
+        resources: [
+          {
+            uri: 'swagger://docs/project/swagger/specs',
+            name: 'API Swagger Specification',
+            description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+            mimeType: 'application/json',
+          },
+        ],
+      },
+    });
+  }
+
+  /**
+   * Handle resources/read request.
+   * @private
+   */
+  private async handleResourcesRead(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): Promise<void> {
+    const params = req.params as { uri?: string };
+    const uri = params?.uri;
+    
+    if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
+      // Read the real Swagger JSON specification from the generated document
+      await this.fetchRealSwaggerResource(uri, {
+        send: (response: unknown) => {
+          const resp = response as { result?: unknown; error?: unknown };
+          transport.send({
+            jsonrpc: '2.0',
+            id: req.id,
+            ...resp,
+          });
+        },
+      });
+    } else {
+      transport.send({
+        jsonrpc: '2.0',
+        id: req.id,
+        error: {
+          code: -32601,
+          message: `Unknown resource URI: ${uri}`,
+        },
+      });
+    }
+  }
+
+  /**
+   * Handle unknown method request.
+   * @private
+   */
+  private handleUnknownMethod(req: { method?: string; id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: '2.0',
+      id: req.id,
+      error: {
+        code: -32601,
+        message: `Method not implemented in HTTP transport: ${req.method}`,
+      },
+    });
+  }
+
+  /**
+   * Handle error in request processing.
+   * @private
+   */
+  private handleError(request: unknown, transport: { send: (response: unknown) => void }, error: unknown): void {
+    transport.send({
+      jsonrpc: '2.0',
+      id: request && typeof request === 'object' ? (request as { id?: unknown }).id : undefined,
+      error: {
+        code: -32603,
+        message: 'Internal error',
+        data: error instanceof Error ? error.message : 'Unknown error',
+      },
+    });
   }
 }

@@ -1,6 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { DocumentBuilder } from '@nestjs/swagger';
 import { Test, TestingModule } from '@nestjs/testing';
 import { v4 as uuidv4 } from 'uuid';

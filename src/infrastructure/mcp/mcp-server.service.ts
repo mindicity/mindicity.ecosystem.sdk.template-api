@@ -14,8 +14,8 @@ import { McpConfig } from '../../config/mcp.config';
 import { HealthService } from '../../modules/health/health.service';
 
 import { McpTransport } from './transports/base-transport';
-import { TransportFactory } from './transports/transport-factory';
 import { createTransportDependencies } from './transports/transport-dependencies';
+import { TransportFactory } from './transports/transport-factory';
 
 /**
  * MCP Server Service provides Model Context Protocol server functionality.
@@ -160,7 +160,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Handle tool calls - dynamically route to appropriate endpoints
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler(CallToolRequestSchema, (request) => {
       const { name, arguments: args } = request.params;
       
       this.logger.trace('MCP tool called', { toolName: name, arguments: args });
@@ -230,9 +230,9 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
    * Handle dynamic tool calls by routing to appropriate API endpoints.
    * @private
    */
-  private async handleDynamicToolCall(toolName: string, args: unknown): Promise<{
+  private handleDynamicToolCall(toolName: string, args: unknown): {
     content: Array<{ type: string; text: string }>;
-  }> {
+  } {
     const appConfig = this.configService.get('app');
     const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
 
@@ -249,9 +249,9 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
    * Make an internal API call to the specified endpoint.
    * @private
    */
-  private async callApiEndpoint(method: string, path: string, args: unknown): Promise<{
+  private callApiEndpoint(method: string, path: string, args: unknown): {
     content: Array<{ type: string; text: string }>;
-  }> {
+  } {
     try {
       // For health endpoint, call the health handler directly
       if (path.includes('/health')) {
@@ -323,7 +323,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     try {
       if (uri.startsWith('swagger://api-docs') && uri.includes('/swagger/specs')) {
         // Fetch the real Swagger JSON specification from the generated document
-        return this.fetchRealSwaggerResource(uri);
+        return await this.fetchRealSwaggerResource(uri);
       }
 
       throw new Error(`Unknown resource URI: ${uri}`);

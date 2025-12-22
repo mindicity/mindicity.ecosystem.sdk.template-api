@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import * as fc from 'fast-check';
 
 import { HealthResponseDto } from './dto/health-response.dto';
 import { SimpleHealthResponseDto } from './dto/simple-health-response.dto';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
-import { ContextLoggerService } from '../../common/services/context-logger.service';
 
 /**
  * **Feature: nestjs-hello-api, Property 7: Health response structure**
@@ -14,7 +12,7 @@ import { ContextLoggerService } from '../../common/services/context-logger.servi
  */
 describe('Health Controller Property Tests', () => {
   let controller: HealthController;
-  let healthService: HealthService;
+  let _healthService: HealthService;
 
   const mockHealthService = {
     getSimpleHealthStatus: jest.fn(),
@@ -30,7 +28,7 @@ describe('Health Controller Property Tests', () => {
     }).compile();
 
     controller = module.get<HealthController>(HealthController);
-    healthService = module.get<HealthService>(HealthService);
+    _healthService = module.get<HealthService>(HealthService);
   });
 
   afterEach(() => {
