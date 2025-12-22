@@ -347,8 +347,8 @@ describe('SseTransport', () => {
         result: {
           protocolVersion: '2024-11-05',
           capabilities: {
-            tools: {},
-            resources: {},
+            // SSE transport provides only basic connectivity
+            // Tools and resources are handled by HTTP transport
           },
           serverInfo: {
             name: config.serverName,
@@ -368,7 +368,11 @@ describe('SseTransport', () => {
         id: 2,
         error: {
           code: -32601,
-          message: 'Method not implemented in SSE transport: unknown',
+          message: "Method 'unknown' not supported in SSE transport. Use HTTP transport for tools and resources.",
+          data: {
+            supportedMethods: ['initialize'],
+            recommendation: 'Use HTTP transport at the same host:port/mcp for full MCP functionality',
+          },
         },
       });
     });
@@ -514,15 +518,15 @@ describe('SseTransport', () => {
   });
 
   describe('dependency validation', () => {
-    it('should throw error when healthService is missing', () => {
-      const invalidDependencies = {};
+    it('should not require healthService for simplified SSE transport', () => {
+      const emptyDependencies = {};
       
       expect(() => {
-        new SseTransport(config, invalidDependencies);
-      }).toThrow('SseTransport requires HealthService in dependencies');
+        new SseTransport(config, emptyDependencies);
+      }).not.toThrow();
     });
 
-    it('should accept valid dependencies', () => {
+    it('should accept valid dependencies when provided', () => {
       const validDependencies = createTransportDependencies({
         healthService: mockHealthService,
       });
@@ -534,247 +538,91 @@ describe('SseTransport', () => {
   });
 
   describe('MCP method processing', () => {
-    it('should handle tools/list method', () => {
+    it('should handle tools/list method with unsupported error', async () => {
       const request = { method: 'tools/list', id: 3 };
-      const response = (transport as any).processMcpRequest(request);
+      const response = await (transport as any).processMcpRequest(request);
 
       expect(response).toEqual({
         jsonrpc: '2.0',
         id: 3,
-        result: {
-          tools: [
-            {
-              name: 'get_api_health',
-              description: 'Check the health status of the API server',
-              inputSchema: {
-                type: 'object',
-                properties: {},
-                required: [],
-              },
-            },
-          ],
+        error: {
+          code: -32601,
+          message: "Method 'tools/list' not supported in SSE transport. Use HTTP transport for tools and resources.",
+          data: {
+            supportedMethods: ['initialize'],
+            recommendation: 'Use HTTP transport at the same host:port/mcp for full MCP functionality',
+          },
         },
       });
     });
 
-    it('should handle tools/call method with get_api_health', () => {
+    it('should handle tools/call method with unsupported error', async () => {
       const request = { 
         method: 'tools/call', 
         id: 4,
         params: { name: 'get_api_health', arguments: {} }
       };
-      const response = (transport as any).processMcpRequest(request);
+      const response = await (transport as any).processMcpRequest(request);
 
       expect(response).toEqual({
         jsonrpc: '2.0',
         id: 4,
-        result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(mockHealthService.getHealthStatus(), null, 2),
-            },
-          ],
-        },
-      });
-    });
-
-    it('should handle tools/call method with unknown tool', () => {
-      const request = { 
-        method: 'tools/call', 
-        id: 5,
-        params: { name: 'unknown_tool', arguments: {} }
-      };
-      const response = (transport as any).processMcpRequest(request);
-
-      expect(response).toEqual({
-        jsonrpc: '2.0',
-        id: 5,
         error: {
           code: -32601,
-          message: 'Unknown tool: unknown_tool',
+          message: "Method 'tools/call' not supported in SSE transport. Use HTTP transport for tools and resources.",
+          data: {
+            supportedMethods: ['initialize'],
+            recommendation: 'Use HTTP transport at the same host:port/mcp for full MCP functionality',
+          },
         },
       });
     });
 
-    it('should handle resources/list method', () => {
+    it('should handle resources/list method with unsupported error', async () => {
       const request = { method: 'resources/list', id: 6 };
-      const response = (transport as any).processMcpRequest(request);
+      const response = await (transport as any).processMcpRequest(request);
 
       expect(response).toEqual({
         jsonrpc: '2.0',
         id: 6,
-        result: {
-          resources: [
-            {
-              uri: 'swagger://docs/project/swagger/specs',
-              name: 'API Swagger Specification',
-              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-              mimeType: 'application/json',
-            },
-          ],
+        error: {
+          code: -32601,
+          message: "Method 'resources/list' not supported in SSE transport. Use HTTP transport for tools and resources.",
+          data: {
+            supportedMethods: ['initialize'],
+            recommendation: 'Use HTTP transport at the same host:port/mcp for full MCP functionality',
+          },
         },
       });
     });
 
-    it('should handle resources/read method with swagger URI', () => {
+    it('should handle resources/read method with unsupported error', async () => {
       const request = { 
         method: 'resources/read', 
         id: 7,
         params: { uri: 'swagger://docs/project/swagger/specs' }
       };
-      
-      // Mock the fetchRealSwaggerResource method
-      jest.spyOn(transport as any, 'fetchRealSwaggerResource').mockResolvedValue({
-        jsonrpc: '2.0',
-        id: 7,
-        result: {
-          contents: [
-            {
-              uri: 'swagger://docs/project/swagger/specs',
-              mimeType: 'application/json',
-              text: '{"openapi": "3.0.0"}',
-            },
-          ],
-        },
-      });
-      
-      const response = (transport as any).processMcpRequest(request);
-      
-      expect(response).toBeDefined();
-    });
-
-    it('should handle resources/read method with unknown URI', () => {
-      const request = { 
-        method: 'resources/read', 
-        id: 8,
-        params: { uri: 'unknown://resource' }
-      };
-      const response = (transport as any).processMcpRequest(request);
+      const response = await (transport as any).processMcpRequest(request);
 
       expect(response).toEqual({
         jsonrpc: '2.0',
-        id: 8,
+        id: 7,
         error: {
           code: -32601,
-          message: 'Unknown resource URI: unknown://resource',
+          message: "Method 'resources/read' not supported in SSE transport. Use HTTP transport for tools and resources.",
+          data: {
+            supportedMethods: ['initialize'],
+            recommendation: 'Use HTTP transport at the same host:port/mcp for full MCP functionality',
+          },
         },
       });
     });
   });
 
   describe('fetchRealSwaggerResource', () => {
-    it('should fetch swagger content from file system', async () => {
-      const uri = 'swagger://docs/project/swagger/specs';
-      const requestId = 'test-id';
-
-      // Mock fs module
-      const mockFs = {
-        existsSync: jest.fn().mockReturnValue(true),
-        readFileSync: jest.fn().mockReturnValue('{"openapi": "3.0.0", "info": {"title": "Test API"}}'),
-      };
-
-      const mockPath = {
-        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
-      };
-
-      jest.doMock('fs', () => mockFs);
-      jest.doMock('path', () => mockPath);
-
-      const result = await (transport as any).fetchRealSwaggerResource(uri, requestId);
-
-      expect(result).toEqual({
-        jsonrpc: '2.0',
-        id: requestId,
-        result: {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: '{"openapi": "3.0.0", "info": {"title": "Test API"}}',
-            },
-          ],
-        },
-      });
-    });
-
-    it('should generate minimal spec when file does not exist', async () => {
-      const uri = 'swagger://docs/project/swagger/specs';
-      const requestId = 'test-id';
-
-      // Mock fs module to return false for existsSync
-      const mockFs = {
-        existsSync: jest.fn().mockReturnValue(false),
-      };
-
-      const mockPath = {
-        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
-      };
-
-      jest.doMock('fs', () => mockFs);
-      jest.doMock('path', () => mockPath);
-
-      const result = await (transport as any).fetchRealSwaggerResource(uri, requestId);
-
-      expect(result).toEqual({
-        jsonrpc: '2.0',
-        id: requestId,
-        result: {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: expect.stringContaining('"openapi": "3.0.0"'),
-            },
-          ],
-        },
-      });
-    });
-
-    it('should handle errors during swagger resource fetch', async () => {
-      const uri = 'swagger://docs/project/swagger/specs';
-      const requestId = 'test-id';
-
-      // Mock fs module to throw error during existsSync
-      const mockFs = {
-        existsSync: jest.fn().mockImplementation(() => {
-          throw new Error('File system error');
-        }),
-      };
-
-      // Clear any existing mocks
-      jest.resetModules();
-      
-      // Mock the dynamic import to return our mock
-      const originalImport = (transport as any).constructor.prototype.fetchRealSwaggerResource;
-      (transport as any).fetchRealSwaggerResource = async (uri: string, requestId: unknown) => {
-        try {
-          // Simulate the fs import throwing an error
-          throw new Error('File system error');
-        } catch (error) {
-          return {
-            jsonrpc: '2.0',
-            id: requestId,
-            error: {
-              code: -32603,
-              message: 'Error fetching Swagger documentation',
-              data: error instanceof Error ? error.message : 'Unknown error',
-            },
-          };
-        }
-      };
-
-      const result = await (transport as any).fetchRealSwaggerResource(uri, requestId);
-
-      expect(result).toEqual({
-        jsonrpc: '2.0',
-        id: requestId,
-        error: {
-          code: -32603,
-          message: 'Error fetching Swagger documentation',
-          data: 'File system error',
-        },
-      });
+    it('should not exist in simplified SSE transport', () => {
+      // SSE transport no longer has fetchRealSwaggerResource method
+      expect((transport as any).fetchRealSwaggerResource).toBeUndefined();
     });
   });
 });

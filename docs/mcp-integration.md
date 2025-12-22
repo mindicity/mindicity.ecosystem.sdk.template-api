@@ -4,6 +4,40 @@
 
 The Mindicity API Template includes a built-in **Model Context Protocol (MCP) server** that enables AI agents to interact with your API through structured tools and resources. This integration allows AI assistants like Kiro to query API information, check health status, access Swagger documentation, and list available endpoints.
 
+## Transport Architecture
+
+### Default Transport: HTTP
+
+**By default, all MCP tools and resources are implemented via HTTP transport**, which provides:
+
+- ✅ **Complete MCP functionality** - All tools and resources available
+- ✅ **RESTful API compatibility** - Standard HTTP requests/responses  
+- ✅ **Easy testing and debugging** - Use any HTTP client (curl, Postman, etc.)
+- ✅ **MCP Inspector compatibility** - Works with all MCP debugging tools
+- ✅ **Production ready** - Robust error handling and logging
+
+### Optional Transport: SSE (Server-Sent Events)
+
+**SSE transport provides basic connectivity only** and should be explicitly requested:
+
+- ⚠️ **Limited functionality** - Only supports `initialize` method
+- ⚠️ **No tools or resources** - Redirects to HTTP transport for full functionality  
+- ✅ **Real-time events** - Suitable for streaming notifications (future use)
+- ✅ **Lightweight** - Minimal overhead for basic connectivity
+
+### Transport Selection Guidelines
+
+**Use HTTP transport (default) when:**
+- You need full MCP functionality (tools and resources)
+- You're using MCP Inspector or other debugging tools
+- You want the most robust and tested implementation
+- You're building production applications
+
+**Use SSE transport only when:**
+- Explicitly required for real-time event streaming
+- You only need basic MCP initialization
+- You understand the limitations and will use HTTP for actual functionality
+
 ## Architecture
 
 ### Components
@@ -36,12 +70,45 @@ src/
 ```bash
 # MCP Server Configuration
 MCP_ENABLED=true                    # Enable/disable MCP server (default: true)
-MCP_TRANSPORT=stdio                 # Transport type: stdio, http, sse (default: stdio)
-MCP_PORT=3233                      # MCP server port for HTTP/SSE (default: 3233)
+MCP_TRANSPORT=http                  # Transport type: stdio, http, sse (default: http for full functionality)
+MCP_PORT=3235                      # MCP server port for HTTP/SSE (default: 3235)
 MCP_HOST=localhost                 # MCP server host for HTTP/SSE (default: localhost)
 MCP_SERVER_NAME=mindicity-api-template  # Server identifier (optional: defaults to package.json name)
 MCP_SERVER_VERSION=1.0.0           # Server version (optional: defaults to package.json version)
 ```
+
+### Transport Configuration
+
+**HTTP Transport (Recommended Default):**
+```bash
+MCP_TRANSPORT=http
+MCP_HOST=localhost
+MCP_PORT=3235
+```
+- **Endpoint**: `http://localhost:3235/mcp`
+- **Features**: Complete tools and resources implementation
+- **Use Case**: Production applications, MCP Inspector, full functionality
+
+**STDIO Transport:**
+```bash
+MCP_TRANSPORT=stdio
+# No host/port needed
+```
+- **Interface**: Standard input/output
+- **Features**: Complete tools and resources via MCP SDK
+- **Use Case**: Command-line integration, terminal-based AI agents
+
+**SSE Transport (Limited):**
+```bash
+MCP_TRANSPORT=sse
+MCP_HOST=localhost
+MCP_PORT=3235
+```
+- **Endpoints**: 
+  - SSE: `http://localhost:3235/mcp/events` (basic connectivity only)
+  - HTTP: `http://localhost:3235/mcp` (for tools and resources)
+- **Features**: Basic initialization only, redirects to HTTP for functionality
+- **Use Case**: Real-time events (when explicitly required)
 
 ### ✅ Enhanced Configuration: Automatic Package.json Integration
 

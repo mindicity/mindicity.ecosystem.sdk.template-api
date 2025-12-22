@@ -59,7 +59,7 @@ describe('MCP Configuration Validation Integration', () => {
       expect(config).toEqual({
         enabled: true,
         transport: 'stdio',
-        port: 3233,
+        port: 3235, // Updated to new default
         host: 'localhost',
         serverName: 'test-server',
         serverVersion: '1.0.0',
@@ -123,7 +123,7 @@ describe('MCP Configuration Validation Integration', () => {
 
       expect(config.enabled).toBe(true);
       expect(config.transport).toBe('stdio');
-      expect(config.port).toBe(3233); // default
+      expect(config.port).toBe(3235); // Updated to new default
       expect(config.host).toBe('localhost'); // default
       expect(config.serverName).toBeDefined(); // from package.json or fallback
       expect(config.serverVersion).toBeDefined(); // from package.json or fallback
@@ -152,7 +152,7 @@ describe('MCP Configuration Validation Integration', () => {
       const config = mcpConfig();
 
       // Config should load with default transport
-      expect(config.transport).toBe('stdio'); // fallback to default
+      expect(config.transport).toBe('http'); // Updated to new default
 
       // But validation should catch the issue
       expect(() => TransportFactory.validateConfig({
@@ -193,7 +193,7 @@ describe('MCP Configuration Validation Integration', () => {
       const config = mcpConfig();
 
       // Should fall back to default port
-      expect(config.port).toBe(3233);
+      expect(config.port).toBe(3235); // Updated to new default
     });
 
     it('should require port for HTTP transport', () => {
@@ -215,7 +215,7 @@ describe('MCP Configuration Validation Integration', () => {
       const config = {
         enabled: true,
         transport: 'http' as const,
-        port: 3233,
+        port: 3235, // Updated to new default
         serverName: 'test-server',
         serverVersion: '1.0.0',
         // host is missing
@@ -245,7 +245,7 @@ describe('MCP Configuration Validation Integration', () => {
       const config = {
         enabled: true,
         transport: 'sse' as const,
-        port: 3233,
+        port: 3235, // Updated to new default
         serverName: 'test-server',
         serverVersion: '1.0.0',
         // host is missing
@@ -260,7 +260,7 @@ describe('MCP Configuration Validation Integration', () => {
       const config = {
         enabled: true,
         transport: 'stdio' as const,
-        port: 3233,
+        port: 3235, // Updated to new default
         host: 'localhost',
         serverVersion: '1.0.0',
         serverName: '', // empty
@@ -275,7 +275,7 @@ describe('MCP Configuration Validation Integration', () => {
       const config = {
         enabled: true,
         transport: 'stdio' as const,
-        port: 3233,
+        port: 3235, // Updated to new default
         host: 'localhost',
         serverName: 'test-server',
         serverVersion: '', // empty
@@ -340,7 +340,7 @@ describe('MCP Configuration Validation Integration', () => {
       const validConfig = {
         enabled: true,
         transport: 'stdio' as const,
-        port: 3233,
+        port: 3235, // Updated to new default
         host: 'localhost',
         serverName: 'test-server',
         serverVersion: '1.0.0',
@@ -388,7 +388,7 @@ describe('MCP Configuration Validation Integration', () => {
       const disabledConfig = {
         enabled: false,
         transport: 'stdio' as const,
-        port: 3233,
+        port: 3235, // Updated to new default
         host: 'localhost',
         serverName: 'test-server',
         serverVersion: '1.0.0',

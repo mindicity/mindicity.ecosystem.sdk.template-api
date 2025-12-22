@@ -52,8 +52,8 @@ export class TransportFactory {
         if (!config.port || !config.host) {
           throw new Error('SSE transport requires port and host configuration');
         }
-        // Dependencies already validated by validateTransportDependencies
-        return new SseTransport(config, dependencies!);
+        // SSE transport no longer requires dependencies (simplified implementation)
+        return new SseTransport(config, dependencies || {});
       
       default:
         throw new Error(`Unsupported transport type: ${config.transport}`);

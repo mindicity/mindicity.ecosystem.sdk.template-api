@@ -64,7 +64,7 @@ describe('TransportFactory', () => {
       expect(transport).toBeInstanceOf(HttpTransport);
     });
 
-    it('should create sse transport with valid config', () => {
+    it('should create sse transport with valid config (no dependencies required)', () => {
       const config = {
         transport: 'sse' as const,
         port: 3233,
@@ -73,6 +73,21 @@ describe('TransportFactory', () => {
         serverVersion: '1.0.0',
       };
 
+      // SSE transport no longer requires dependencies
+      const transport = TransportFactory.createTransport(config);
+      expect(transport).toBeInstanceOf(SseTransport);
+    });
+
+    it('should create sse transport with dependencies (optional)', () => {
+      const config = {
+        transport: 'sse' as const,
+        port: 3233,
+        host: 'localhost',
+        serverName: 'test-server',
+        serverVersion: '1.0.0',
+      };
+
+      // Dependencies are optional for SSE transport
       const transport = TransportFactory.createTransport(config, dependencies);
       expect(transport).toBeInstanceOf(SseTransport);
     });
@@ -112,22 +127,8 @@ describe('TransportFactory', () => {
         serverVersion: '1.0.0',
       };
 
-      expect(() => TransportFactory.createTransport(config, dependencies)).toThrow(
-        'SSE transport requires port and host configuration'
-      );
-    });
-
-    it('should throw error for sse transport without HealthService', () => {
-      const config = {
-        transport: 'sse' as const,
-        port: 3233,
-        host: 'localhost',
-        serverName: 'test-server',
-        serverVersion: '1.0.0',
-      };
-
       expect(() => TransportFactory.createTransport(config)).toThrow(
-        'SSE transport requires HealthService in dependencies'
+        'SSE transport requires port and host configuration'
       );
     });
 

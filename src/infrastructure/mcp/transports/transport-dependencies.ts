@@ -140,11 +140,14 @@ export function validateTransportDependencies(
   transportType: string,
   dependencies?: OptionalTransportDependencies
 ): void {
-  if (transportType === 'http' || transportType === 'sse') {
+  if (transportType === 'http') {
     if (!dependencies?.healthService) {
       throw new Error(`${transportType.toUpperCase()} transport requires HealthService in dependencies`);
     }
   }
+
+  // SSE transport no longer requires dependencies since it's simplified
+  // STDIO transport doesn't require dependencies
 
   // Future transport-specific validation can be added here
   // For example:

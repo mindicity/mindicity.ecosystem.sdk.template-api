@@ -8,7 +8,25 @@ import { OptionalTransportDependencies } from './transport-dependencies';
 
 /**
  * Server-Sent Events transport implementation for MCP server.
- * Provides SSE endpoint for real-time MCP communication with AI agents.
+ * 
+ * **IMPORTANT**: This transport provides only basic SSE connectivity and initialization.
+ * For full MCP functionality (tools and resources), use the HTTP transport.
+ * 
+ * **Supported Methods:**
+ * - `initialize` - Basic MCP initialization and capability negotiation
+ * 
+ * **Not Supported:**
+ * - `tools/list` - Use HTTP transport
+ * - `tools/call` - Use HTTP transport  
+ * - `resources/list` - Use HTTP transport
+ * - `resources/read` - Use HTTP transport
+ * 
+ * **Usage:**
+ * - SSE endpoint: `http://host:port/mcp/events` - For real-time event streaming
+ * - HTTP endpoint: `http://host:port/mcp` - For full MCP functionality
+ * 
+ * This design simplifies the codebase by centralizing tool and resource logic
+ * in the HTTP transport while providing SSE for real-time notifications.
  */
 export class SseTransport implements McpTransport {
   private httpServer: HttpServer | null = null;
@@ -19,10 +37,8 @@ export class SseTransport implements McpTransport {
     private readonly config: TransportConfig,
     private readonly dependencies: OptionalTransportDependencies,
   ) {
-    // Validate that required dependencies are present
-    if (!dependencies.healthService) {
-      throw new Error('SseTransport requires HealthService in dependencies');
-    }
+    // SSE transport only provides basic connectivity
+    // No validation needed as tools/resources are handled by HTTP transport
   }
 
   /**
@@ -164,7 +180,7 @@ export class SseTransport implements McpTransport {
       (async (): Promise<void> => {
         try {
           const request = JSON.parse(body);
-          const response = await this.processMcpRequest(request);
+          const response = this.processMcpRequest(request);
           
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(response));
@@ -238,92 +254,15 @@ export class SseTransport implements McpTransport {
   }
 
   /**
-   * Fetch the real Swagger resource content from the generated OpenAPI document.
-   * @private
-   */
-  private async fetchRealSwaggerResource(uri: string): Promise<{ result?: unknown; error?: unknown }> {
-    try {
-      // Try to read the exported OpenAPI JSON file first
-      const fs = await import('fs');
-      const path = await import('path');
-      
-      const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
-      
-      if (fs.existsSync(openApiPath)) {
-        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
-        
-        return {
-          result: {
-            contents: [
-              {
-                uri,
-                mimeType: 'application/json',
-                text: swaggerContent,
-              },
-            ],
-          },
-        };
-      }
-      
-      // Fallback: generate a minimal spec if file doesn't exist
-      const minimalSpec = {
-        openapi: '3.0.0',
-        info: {
-          title: this.config.serverName,
-          version: this.config.serverVersion,
-          description: 'API specification - full documentation available via Swagger UI',
-        },
-        servers: [
-          {
-            url: 'http://localhost:3232/mcapi',
-            description: 'API Server',
-          },
-        ],
-        paths: {},
-        components: {},
-        note: 'Complete API documentation with all endpoints is available at: http://localhost:3232/mcapi/docs/project/swagger/ui',
-      };
-
-      return {
-        result: {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify(minimalSpec, null, 2),
-            },
-          ],
-        },
-      };
-    } catch (error) {
-      return {
-        error: {
-          code: -32603,
-          message: 'Error fetching Swagger documentation',
-          data: error instanceof Error ? error.message : 'Unknown error',
-        },
-      };
-    }
-  }
-
-  /**
    * Process MCP request and return response.
    * @private
    */
-  private async processMcpRequest(request: unknown): Promise<unknown> {
+  private processMcpRequest(request: unknown): unknown {
     const req = request as { method?: string; id?: unknown; params?: unknown };
     
     switch (req.method) {
       case 'initialize':
         return this.processInitialize(req);
-      case 'tools/list':
-        return this.processToolsList(req);
-      case 'tools/call':
-        return this.processToolsCall(req);
-      case 'resources/list':
-        return this.processResourcesList(req);
-      case 'resources/read':
-        return await this.processResourcesRead(req);
       default:
         return this.processUnknownMethod(req);
     }
@@ -340,8 +279,8 @@ export class SseTransport implements McpTransport {
       result: {
         protocolVersion: '2024-11-05',
         capabilities: {
-          tools: {},
-          resources: {},
+          // SSE transport provides only basic connectivity
+          // Tools and resources are handled by HTTP transport
         },
         serverInfo: {
           name: this.config.serverName,
@@ -352,115 +291,8 @@ export class SseTransport implements McpTransport {
   }
 
   /**
-   * Process tools/list request.
-   * @private
-   */
-  private processToolsList(req: { id?: unknown }): unknown {
-    return {
-      jsonrpc: '2.0',
-      id: req.id,
-      result: {
-        tools: [
-          {
-            name: 'get_api_health',
-            description: 'Check the health status of the API server',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-        ],
-      },
-    };
-  }
-
-  /**
-   * Process tools/call request.
-   * @private
-   */
-  private processToolsCall(req: { id?: unknown; params?: unknown }): unknown {
-    const params = req.params as { name?: string; arguments?: unknown };
-    const toolName = params?.name;
-    
-    if (toolName === 'get_api_health') {
-      const healthData = this.dependencies.healthService!.getHealthStatus();
-
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(healthData, null, 2),
-            },
-          ],
-        },
-      };
-    } else {
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        error: {
-          code: -32601,
-          message: `Unknown tool: ${toolName}`,
-        },
-      };
-    }
-  }
-
-  /**
-   * Process resources/list request.
-   * @private
-   */
-  private processResourcesList(req: { id?: unknown }): unknown {
-    return {
-      jsonrpc: '2.0',
-      id: req.id,
-      result: {
-        resources: [
-          {
-            uri: 'swagger://docs/project/swagger/specs',
-            name: 'API Swagger Specification',
-            description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-            mimeType: 'application/json',
-          },
-        ],
-      },
-    };
-  }
-
-  /**
-   * Process resources/read request.
-   * @private
-   */
-  private async processResourcesRead(req: { id?: unknown; params?: unknown }): Promise<unknown> {
-    const params = req.params as { uri?: string };
-    const uri = params?.uri;
-    
-    if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
-      // Read the real Swagger JSON specification from the generated document
-      const result = await this.fetchRealSwaggerResource(uri);
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        ...result,
-      };
-    } else {
-      return {
-        jsonrpc: '2.0',
-        id: req.id,
-        error: {
-          code: -32601,
-          message: `Unknown resource URI: ${uri}`,
-        },
-      };
-    }
-  }
-
-  /**
    * Process unknown method request.
+   * SSE transport only supports initialize - all other methods should use HTTP transport.
    * @private
    */
   private processUnknownMethod(req: { method?: string; id?: unknown }): unknown {
@@ -469,7 +301,11 @@ export class SseTransport implements McpTransport {
       id: req.id,
       error: {
         code: -32601,
-        message: `Method not implemented in SSE transport: ${req.method}`,
+        message: `Method '${req.method}' not supported in SSE transport. Use HTTP transport for tools and resources.`,
+        data: {
+          supportedMethods: ['initialize'],
+          recommendation: 'Use HTTP transport at the same host:port/mcp for full MCP functionality',
+        },
       },
     };
   }

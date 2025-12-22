@@ -86,7 +86,13 @@ describe('TransportDependencies', () => {
       }).not.toThrow();
     });
 
-    it('should validate SSE transport dependencies', () => {
+    it('should not require healthService for SSE transport (simplified)', () => {
+      expect(() => {
+        validateTransportDependencies('sse', {});
+      }).not.toThrow();
+    });
+
+    it('should accept healthService for SSE transport (optional)', () => {
       const dependencies = {
         healthService: mockHealthService,
       };
@@ -108,22 +114,16 @@ describe('TransportDependencies', () => {
       }).toThrow('HTTP transport requires HealthService in dependencies');
     });
 
-    it('should throw error for SSE transport without healthService', () => {
-      expect(() => {
-        validateTransportDependencies('sse', {});
-      }).toThrow('SSE transport requires HealthService in dependencies');
-    });
-
     it('should handle undefined dependencies for HTTP', () => {
       expect(() => {
         validateTransportDependencies('http', undefined);
       }).toThrow('HTTP transport requires HealthService in dependencies');
     });
 
-    it('should handle undefined dependencies for SSE', () => {
+    it('should handle undefined dependencies for SSE (allowed)', () => {
       expect(() => {
         validateTransportDependencies('sse', undefined);
-      }).toThrow('SSE transport requires HealthService in dependencies');
+      }).not.toThrow();
     });
 
     it('should handle undefined dependencies for STDIO', () => {

@@ -26,8 +26,8 @@ describe('McpConfig', () => {
 
     expect(config).toEqual({
       enabled: true,
-      transport: 'stdio',
-      port: 3233,
+      transport: 'http',
+      port: 3235,
       host: 'localhost',
       serverName: 'mindicity-api-template',
       serverVersion: '1.0.0',
@@ -61,7 +61,7 @@ describe('McpConfig', () => {
 
     const config = mcpConfig();
     // Should fall back to default when invalid enum value is provided
-    expect(config.transport).toBe('stdio');
+    expect(config.transport).toBe('http');
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('Invalid value for MCP_TRANSPORT: "invalid"')
     );

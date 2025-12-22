@@ -921,12 +921,34 @@ export class UserService {
 
 **CRITICAL REQUIREMENT:** Every new API module MUST be integrated with MCP by adding corresponding tools that expose the module's functionality to AI agents.
 
+### MCP Transport Architecture
+
+**Default Transport: HTTP (Recommended)**
+
+All MCP tools and resources are implemented via **HTTP transport by default**, providing:
+
+- ✅ **Complete MCP functionality** - All tools and resources available
+- ✅ **Production ready** - Robust error handling and comprehensive logging
+- ✅ **MCP Inspector compatible** - Works with all MCP debugging tools
+- ✅ **Easy testing** - Use any HTTP client (curl, Postman, MCP Inspector)
+- ✅ **RESTful integration** - Standard HTTP requests/responses
+
+**Optional Transports:**
+
+- **STDIO**: Complete functionality via standard input/output (command-line integration)
+- **SSE**: Basic connectivity only, redirects to HTTP for tools/resources (limited use)
+
+**Transport Selection:**
+- Use **HTTP** (default) for production applications and full functionality
+- Use **STDIO** for command-line AI agent integration
+- Use **SSE** only when explicitly required for real-time events (tools/resources still use HTTP)
+
 ### MCP Architecture Overview
 
 The MCP integration provides AI agents with structured access to API functionality through:
 - **Tools**: Specific actions that agents can perform (one tool per endpoint/intention)
 - **Resources**: Dynamic data sources that agents can read
-- **Multiple Transports**: HTTP, SSE, and STDIO support for different use cases
+- **Multiple Transports**: HTTP (default), SSE, and STDIO support for different use cases
 
 ### MCP Integration Rules
 
@@ -1426,7 +1448,7 @@ src/config/
 ```bash
 # MCP Server Configuration
 MCP_ENABLED=true                     # Enable/disable MCP server
-MCP_TRANSPORT=sse                    # Transport type: stdio|http|sse
+MCP_TRANSPORT=http                   # Transport type: stdio|http|sse (default: http)
 MCP_HOST=localhost                   # Host for HTTP/SSE transports
 MCP_PORT=3235                        # Port for HTTP/SSE transports
 MCP_SERVER_NAME=your-api-name        # Server name for MCP identification
@@ -1452,7 +1474,7 @@ export type McpConfig = z.infer<typeof McpConfigSchema>;
 export const mcpConfig = (): McpConfig => {
   const config = {
     enabled: EnvUtil.parseBoolean(process.env.MCP_ENABLED, true),
-    transport: EnvUtil.parseEnum(process.env.MCP_TRANSPORT, ['stdio', 'http', 'sse'], 'stdio'),
+    transport: EnvUtil.parseEnum(process.env.MCP_TRANSPORT, ['stdio', 'http', 'sse'], 'http'),
     host: EnvUtil.parseString(process.env.MCP_HOST, 'localhost'),
     port: EnvUtil.parseNumber(process.env.MCP_PORT, 3235),
     serverName: EnvUtil.parseString(process.env.MCP_SERVER_NAME, process.env.npm_package_name, 'nestjs-api'),
@@ -1757,15 +1779,16 @@ describe('McpServerService', () => {
 // E2E tests for each transport
 describe('MCP E2E Tests', () => {
   it('should handle MCP requests via HTTP transport', async () => {
-    // Test HTTP transport functionality
+    // Test HTTP transport functionality (complete tools and resources)
   });
 
   it('should handle MCP requests via SSE transport', async () => {
-    // Test SSE transport functionality  
+    // Test SSE transport functionality (basic connectivity only)
+    // Note: SSE only supports initialize, tools/resources redirect to HTTP
   });
 
   it('should handle MCP requests via STDIO transport', async () => {
-    // Test STDIO transport functionality
+    // Test STDIO transport functionality (complete tools and resources)
   });
 });
 ```
@@ -1826,7 +1849,9 @@ describe('MCP E2E Tests', () => {
 - [ ] Implement handler methods that delegate to service methods (no direct logic)
 - [ ] Add comprehensive tool descriptions to `ListToolsRequestSchema` handler
 - [ ] Ensure HTTP and SSE transports can access service via dependencies
-- [ ] Test all MCP tools with different transports (HTTP, SSE, STDIO)
+- [ ] Test all MCP tools with HTTP transport (primary)
+- [ ] Test basic connectivity with SSE transport (secondary)
+- [ ] Test STDIO transport if command-line integration needed
 - [ ] Add MCP E2E tests for all new tools
 - [ ] Update MCP documentation with new tools and examples
 
