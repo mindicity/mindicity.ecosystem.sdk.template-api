@@ -199,8 +199,13 @@ export class SseTransport implements McpTransport {
       activeConnections: this.clients.size,
       capabilities: {
         tools: {},
-        resources: {},
       },
+      availableTools: [
+        {
+          name: 'get_api_health',
+          description: 'Check the health status of the API server',
+        },
+      ],
     };
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -222,7 +227,6 @@ export class SseTransport implements McpTransport {
           protocolVersion: '2024-11-05',
           capabilities: {
             tools: {},
-            resources: {},
           },
           serverInfo: {
             name: this.config.serverName,
@@ -230,6 +234,61 @@ export class SseTransport implements McpTransport {
           },
         },
       };
+    } else if (req.method === 'tools/list') {
+      // Handle tools/list request - only health endpoint
+      return {
+        jsonrpc: '2.0',
+        id: req.id,
+        result: {
+          tools: [
+            {
+              name: 'get_api_health',
+              description: 'Check the health status of the API server',
+              inputSchema: {
+                type: 'object',
+                properties: {},
+                required: [],
+              },
+            },
+          ],
+        },
+      };
+    } else if (req.method === 'tools/call') {
+      // Handle tools/call request - only health endpoint
+      const params = req.params as { name?: string; arguments?: unknown };
+      const toolName = params?.name;
+      
+      if (toolName === 'get_api_health') {
+        return {
+          jsonrpc: '2.0',
+          id: req.id,
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'healthy',
+                  timestamp: new Date().toISOString(),
+                  server: this.config.serverName,
+                  version: this.config.serverVersion,
+                  uptime: process.uptime(),
+                  memory: process.memoryUsage(),
+                  environment: process.env.NODE_ENV || 'development',
+                }, null, 2),
+              },
+            ],
+          },
+        };
+      } else {
+        return {
+          jsonrpc: '2.0',
+          id: req.id,
+          error: {
+            code: -32601,
+            message: `Unknown tool: ${toolName}`,
+          },
+        };
+      }
     }
 
     // For other methods, return not implemented
@@ -238,7 +297,7 @@ export class SseTransport implements McpTransport {
       id: req.id,
       error: {
         code: -32601,
-        message: 'Method not implemented in SSE transport',
+        message: `Method not implemented in SSE transport: ${req.method}`,
       },
     };
   }

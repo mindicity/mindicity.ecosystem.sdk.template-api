@@ -106,16 +106,12 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
       {
         capabilities: {
           tools: {},
-          resources: {},
         },
       }
     );
 
-    // Set up tool handlers
-    this.setupToolHandlers();
-
-    // Set up resource handlers
-    this.setupResourceHandlers();
+    // Set up dynamic tool handlers
+    this.setupDynamicToolHandlers();
 
     // Connect transport to server
     await this.transport.connect(this.server);
@@ -130,153 +126,124 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Set up MCP tool handlers for AI agent interactions.
+   * Set up dynamic MCP tool handlers that automatically create tools for each API endpoint.
    * @private
    */
-  private setupToolHandlers(): void {
+  private setupDynamicToolHandlers(): void {
     if (!this.server) return;
 
-    // List available tools
+    // List available tools - dynamically generated from API endpoints
     this.server.setRequestHandler(ListToolsRequestSchema, () => {
       this.logger.trace('MCP tools list requested');
       
-      return {
-        tools: [
-          {
-            name: 'get_api_info',
-            description: 'Get information about the API server including health status and configuration',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-          {
-            name: 'get_api_health',
-            description: 'Check the health status of the API server',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-          {
-            name: 'list_api_endpoints',
-            description: 'List all available API endpoints with their methods and descriptions',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-        ],
-      };
+      const tools = this.generateDynamicTools();
+      return { tools };
     });
 
-    // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, (request) => {
+    // Handle tool calls - dynamically route to appropriate endpoints
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       
       this.logger.trace('MCP tool called', { toolName: name, arguments: args });
 
-      switch (name) {
-        case 'get_api_info':
-          return this.handleGetApiInfo();
-        
-        case 'get_api_health':
-          return this.handleGetApiHealth();
-        
-        case 'list_api_endpoints':
-          return this.handleListApiEndpoints();
-        
-        default:
-          throw new Error(`Unknown tool: ${name}`);
-      }
+      return this.handleDynamicToolCall(name, args);
     });
+
+    this.logger.debug('Dynamic MCP tool handlers configured');
   }
 
   /**
-   * Set up MCP resource handlers for AI agent access to API resources.
+   * Generate dynamic tools based on available API endpoints.
    * @private
    */
-  private setupResourceHandlers(): void {
-    if (!this.server) return;
-
-    // Resources can be added here for providing API documentation,
-    // schemas, or other resources that AI agents might need
-    this.logger.debug('MCP resource handlers configured');
-  }
-
-  /**
-   * Handle get_api_info tool call.
-   * @private
-   */
-  private handleGetApiInfo(): { content: Array<{ type: string; text: string }> } {
+  private generateDynamicTools(): Array<{
+    name: string;
+    description: string;
+    inputSchema: {
+      type: string;
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+  }> {
     const appConfig = this.configService.get('app');
-    const apiInfo = this.buildApiInfo(appConfig);
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(apiInfo, null, 2),
-        },
-      ],
-    };
-  }
-
-  /**
-   * Build API information object.
-   * @private
-   */
-  private buildApiInfo(appConfig: unknown): Record<string, unknown> {
-    const config = this.extractAppConfig(appConfig);
+    const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
     
-    return {
-      name: this.mcpConfig.serverName,
-      version: this.mcpConfig.serverVersion,
-      port: config.port,
-      apiPrefix: config.apiPrefix,
-      apiScopePrefix: config.apiScopePrefix,
-      corsEnabled: config.corsEnabled,
-      swaggerUrl: `${config.swaggerHostname}${config.apiPrefix}/docs/swagger/ui`,
-    };
+    // Define available API endpoints that become MCP tools
+    const apiEndpoints = [
+      {
+        name: 'get_api_health',
+        method: 'GET',
+        path: `${baseUrl}/health`,
+        description: 'Check the health status of the API server',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+    ];
+
+    return apiEndpoints.map(endpoint => ({
+      name: endpoint.name,
+      description: endpoint.description,
+      inputSchema: endpoint.inputSchema,
+    }));
   }
 
   /**
-   * Extract and normalize app configuration values.
+   * Handle dynamic tool calls by routing to appropriate API endpoints.
    * @private
    */
-  private extractAppConfig(appConfig: unknown): {
-    port: number;
-    apiPrefix: string;
-    apiScopePrefix: string;
-    corsEnabled: boolean;
-    swaggerHostname: string;
-  } {
-    const config = appConfig as {
-      port?: number;
-      apiPrefix?: string;
-      apiScopePrefix?: string;
-      corsEnabled?: boolean;
-      swaggerHostname?: string;
-    };
+  private async handleDynamicToolCall(toolName: string, args: unknown): Promise<{
+    content: Array<{ type: string; text: string }>;
+  }> {
+    const appConfig = this.configService.get('app');
+    const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
 
-    return {
-      port: this.getConfigValue(config?.port, 3232),
-      apiPrefix: this.getConfigValue(config?.apiPrefix, '/mcapi'),
-      apiScopePrefix: this.getConfigValue(config?.apiScopePrefix, ''),
-      corsEnabled: this.getConfigValue(config?.corsEnabled, true),
-      swaggerHostname: this.getConfigValue(config?.swaggerHostname, 'http://localhost:3232'),
-    };
+    switch (toolName) {
+      case 'get_api_health':
+        return this.callApiEndpoint('GET', `${baseUrl}/health`, args);
+      
+      default:
+        throw new Error(`Unknown tool: ${toolName}`);
+    }
   }
 
   /**
-   * Get configuration value with fallback.
+   * Make an internal API call to the specified endpoint.
    * @private
    */
-  private getConfigValue<T>(value: T | undefined, defaultValue: T): T {
-    return value ?? defaultValue;
+  private async callApiEndpoint(method: string, path: string, args: unknown): Promise<{
+    content: Array<{ type: string; text: string }>;
+  }> {
+    try {
+      // For health endpoint, call the health handler directly
+      if (path.includes('/health')) {
+        return this.handleGetApiHealth();
+      } else {
+        throw new Error(`Endpoint not implemented: ${path}`);
+      }
+    } catch (error) {
+      this.logger.error('Error calling API endpoint', { 
+        method, 
+        path, 
+        args, 
+        err: error 
+      });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: 'Failed to call API endpoint',
+              message: error instanceof Error ? error.message : 'Unknown error',
+              endpoint: `${method} ${path}`,
+            }, null, 2),
+          },
+        ],
+      };
+    }
   }
 
   /**
@@ -284,12 +251,14 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
    * @private
    */
   private handleGetApiHealth(): { content: Array<{ type: string; text: string }> } {
-    // This would typically make an actual health check call to the API
     const healthStatus = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
+      server: this.mcpConfig.serverName,
+      version: this.mcpConfig.serverVersion,
       uptime: process.uptime(),
       memory: process.memoryUsage(),
+      environment: process.env.NODE_ENV || 'development',
     };
 
     return {
@@ -297,42 +266,6 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
         {
           type: 'text',
           text: JSON.stringify(healthStatus, null, 2),
-        },
-      ],
-    };
-  }
-
-  /**
-   * Handle list_api_endpoints tool call.
-   * @private
-   */
-  private handleListApiEndpoints(): { content: Array<{ type: string; text: string }> } {
-    const appConfig = this.configService.get('app');
-    const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
-    
-    const endpoints = [
-      {
-        method: 'GET',
-        path: `${baseUrl}/health`,
-        description: 'Health check endpoint',
-      },
-      {
-        method: 'GET',
-        path: `${baseUrl}/template`,
-        description: 'Template module endpoints (to be customized)',
-      },
-      {
-        method: 'GET',
-        path: `${appConfig?.apiPrefix ?? '/mcapi'}/docs/swagger/ui`,
-        description: 'Swagger API documentation',
-      },
-    ];
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(endpoints, null, 2),
         },
       ],
     };

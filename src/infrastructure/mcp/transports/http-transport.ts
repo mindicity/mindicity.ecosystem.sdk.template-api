@@ -130,21 +130,17 @@ export class HttpTransport implements McpTransport {
       throw new Error('MCP server not initialized');
     }
 
-    // This is a simplified implementation
-    // In a real scenario, you'd need to properly integrate with the MCP SDK's request handling
     try {
-      // For now, we'll handle basic requests manually
-      const req = request as { method?: string; params?: unknown };
+      const req = request as { method?: string; params?: unknown; id?: unknown };
       
       if (req.method === 'initialize') {
         transport.send({
           jsonrpc: '2.0',
-          id: (request as { id?: unknown }).id,
+          id: req.id,
           result: {
             protocolVersion: '2024-11-05',
             capabilities: {
               tools: {},
-              resources: {},
             },
             serverInfo: {
               name: this.config.serverName,
@@ -152,14 +148,69 @@ export class HttpTransport implements McpTransport {
             },
           },
         });
+      } else if (req.method === 'tools/list') {
+        // Handle tools/list request - only health endpoint
+        transport.send({
+          jsonrpc: '2.0',
+          id: req.id,
+          result: {
+            tools: [
+              {
+                name: 'get_api_health',
+                description: 'Check the health status of the API server',
+                inputSchema: {
+                  type: 'object',
+                  properties: {},
+                  required: [],
+                },
+              },
+            ],
+          },
+        });
+      } else if (req.method === 'tools/call') {
+        // Handle tools/call request - only health endpoint
+        const params = req.params as { name?: string; arguments?: unknown };
+        const toolName = params?.name;
+        
+        if (toolName === 'get_api_health') {
+          transport.send({
+            jsonrpc: '2.0',
+            id: req.id,
+            result: {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    status: 'healthy',
+                    timestamp: new Date().toISOString(),
+                    server: this.config.serverName,
+                    version: this.config.serverVersion,
+                    uptime: process.uptime(),
+                    memory: process.memoryUsage(),
+                    environment: process.env.NODE_ENV || 'development',
+                  }, null, 2),
+                },
+              ],
+            },
+          });
+        } else {
+          transport.send({
+            jsonrpc: '2.0',
+            id: req.id,
+            error: {
+              code: -32601,
+              message: `Unknown tool: ${toolName}`,
+            },
+          });
+        }
       } else {
         // For other requests, return a not implemented response
         transport.send({
           jsonrpc: '2.0',
-          id: (request as { id?: unknown }).id,
+          id: req.id,
           error: {
             code: -32601,
-            message: 'Method not implemented in HTTP transport',
+            message: `Method not implemented in HTTP transport: ${req.method}`,
           },
         });
       }
