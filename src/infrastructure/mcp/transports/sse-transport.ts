@@ -16,6 +16,13 @@ export class SseTransport implements McpTransport {
 
   constructor(private readonly config: TransportConfig) {}
 
+  /**
+   * Connect the SSE transport to the MCP server.
+   * Creates an HTTP server with SSE endpoints for real-time communication.
+   * 
+   * @param server - MCP server instance to connect to
+   * @returns Promise that resolves when HTTP server is listening
+   */
   connect(server: Server): Promise<void> {
     this.mcpServer = server;
     
@@ -56,6 +63,12 @@ export class SseTransport implements McpTransport {
     });
   }
 
+  /**
+   * Disconnect the SSE transport and cleanup resources.
+   * Closes all SSE connections and the HTTP server.
+   * 
+   * @returns Promise that resolves when server is closed
+   */
   disconnect(): Promise<void> {
     // Close all SSE connections
     for (const client of this.clients) {
@@ -74,6 +87,11 @@ export class SseTransport implements McpTransport {
     return Promise.resolve();
   }
 
+  /**
+   * Get transport information and configuration details.
+   * 
+   * @returns Transport type, endpoints, and active connection information
+   */
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
     return {
       type: 'sse',

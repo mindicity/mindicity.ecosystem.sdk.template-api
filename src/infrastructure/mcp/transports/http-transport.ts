@@ -14,6 +14,13 @@ export class HttpTransport implements McpTransport {
 
   constructor(private readonly config: TransportConfig) {}
 
+  /**
+   * Connect the HTTP transport to the MCP server.
+   * Creates an HTTP server listening on the configured host and port.
+   * 
+   * @param server - MCP server instance to connect to
+   * @returns Promise that resolves when HTTP server is listening
+   */
   connect(server: Server): Promise<void> {
     this.mcpServer = server;
     
@@ -78,6 +85,12 @@ export class HttpTransport implements McpTransport {
     });
   }
 
+  /**
+   * Disconnect the HTTP transport and cleanup resources.
+   * Closes the HTTP server and cleans up connections.
+   * 
+   * @returns Promise that resolves when server is closed
+   */
   disconnect(): Promise<void> {
     if (this.httpServer) {
       return new Promise((resolve) => {
@@ -90,6 +103,11 @@ export class HttpTransport implements McpTransport {
     return Promise.resolve();
   }
 
+  /**
+   * Get transport information and configuration details.
+   * 
+   * @returns Transport type, host, port, and endpoint information
+   */
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
     return {
       type: 'http',
