@@ -158,7 +158,53 @@ Description: User management and authentication API
 - `APP_LOG_PREFIX=api_template` → `APP_LOG_PREFIX=api_{project_name}`
 - `APP_API_SCOPE_PREFIX=/project` → `APP_API_SCOPE_PREFIX=/{project_name}`
 
-### Step 7: Verification
+### Step 7: MCP Integration (MANDATORY)
+
+**CRITICAL**: After bootstrap completion, MCP tools MUST be implemented for the new API module.
+
+#### **Mandatory MCP Tool Implementation Rules**
+
+**DEFAULT BEHAVIOR**: Unless explicitly specified otherwise, MCP tools MUST be implemented for **HTTP transport**
+
+**Implementation Decision Matrix**:
+
+| Bootstrap Request | MCP Implementation | Transport | Functionality |
+|------------------|-------------------|-----------|---------------|
+| Standard bootstrap | ✅ **MANDATORY HTTP** | HTTP | Complete tools + resources |
+| "Bootstrap with SSE" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
+| "Bootstrap for real-time" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
+
+**Mandatory Tool Generation**:
+```typescript
+// For bootstrapped {api_name} module, MUST create:
+// Pattern: {action}_{api_name}_{entity}
+
+'get_{api_name}_list',      // GET /{api_name}
+'create_{api_name}',        // POST /{api_name}  
+'get_{api_name}_by_id',     // GET /{api_name}/:id
+'update_{api_name}',        // PUT /{api_name}/:id
+'delete_{api_name}',        // DELETE /{api_name}/:id
+
+// Example for users module:
+'get_users_list',           // GET /users
+'create_user',              // POST /users
+'get_user_by_id',          // GET /users/:id
+'update_user',             // PUT /users/:id
+'delete_user',             // DELETE /users/:id
+```
+
+**MCP Integration Steps (MANDATORY)**:
+1. Add `{api_name}Service` to `TransportDependencies` interface
+2. Update `createTransportDependencies` function
+3. Inject service in `McpServerService` constructor
+4. Add tool handlers to `setupToolHandlers` switch statement
+5. Implement handler methods that delegate to service methods
+6. Add tool descriptions to `ListToolsRequestSchema`
+7. Create MCP E2E tests for all new tools
+
+### Step 8: Verification
+
+### Step 8: Verification
 
 **CRITICAL**: Run these commands to verify the bootstrap was successful:
 
@@ -166,6 +212,7 @@ Description: User management and authentication API
 2. **Build Check**: `npm run build` (must succeed)
 3. **Lint Check**: `npm run lint` (must pass)
 4. **Test Verification**: `npm run test` (all tests must pass)
+5. **MCP Integration Check**: Verify MCP tools are implemented and working
 
 **If any step fails**, the bootstrap is incomplete and must be fixed before proceeding.
 
@@ -200,9 +247,10 @@ Description: User management and authentication API
 
 1. **REQUIRE user declaration** - Always require explicit project name and API module name declaration before starting
 2. **NEVER skip validation** - Always validate input parameters before starting
-2. **Execute operations in exact order** - File operations must follow the sequence above
-3. **Verify each step** - Check that files exist and contain expected content after each operation
-4. **Handle errors gracefully** - If any step fails, provide clear error messages and cleanup guidance
+3. **Execute operations in exact order** - File operations must follow the sequence above
+4. **Verify each step** - Check that files exist and contain expected content after each operation
+5. **Handle errors gracefully** - If any step fails, provide clear error messages and cleanup guidance
+6. **MANDATORY MCP INTEGRATION** - Always implement MCP tools for HTTP transport unless SSE explicitly requested
 
 ### Input Validation
 
@@ -241,3 +289,5 @@ The bootstrap is successful when:
 - `npm run build` succeeds
 - `npm run lint` passes
 - `npm run test` passes with 100% success rate
+- **MCP tools are mandatorily implemented** for the new API module
+- **HTTP transport is configured** as default (unless SSE explicitly requested)

@@ -2,6 +2,38 @@
 
 This document provides practical examples of how to use different MCP transport types with your Mindicity API.
 
+## 🚨 MANDATORY MCP TOOL IMPLEMENTATION
+
+**CRITICAL:** When creating new API modules, MCP tools MUST be implemented according to these rules:
+
+### Default Implementation: HTTP Transport
+
+**IF NO TRANSPORT SPECIFIED**: MCP tools MUST be implemented for **HTTP transport** (default)
+
+```typescript
+// User Request Examples → MANDATORY HTTP Implementation
+"Create users API module"
+"Create products API with CRUD operations"
+"Add orders module with status management"
+
+// Result: HTTP transport with full MCP tools mandatorily implemented
+```
+
+### Explicit SSE Implementation
+
+**IF SSE EXPLICITLY REQUESTED**: MCP tools MUST be implemented **ONLY for SSE transport**
+
+```typescript
+// User Request Examples → SSE Implementation
+"Create notifications API with SSE transport"
+"Create chat API for real-time messaging"
+"Add events module with server-sent events"
+
+// Result: SSE transport only (basic connectivity, limited functionality)
+```
+
+## Transport Examples
+
 ## Stdio Transport Example
 
 ### Configuration
@@ -28,22 +60,31 @@ MCP_SERVER_VERSION=1.0.0
 }
 ```
 
-## HTTP Transport Example
+## HTTP Transport Example (Default for New Modules)
 
 ### Configuration
+
 ```bash
 MCP_ENABLED=true
 MCP_TRANSPORT=http
 MCP_HOST=localhost
-MCP_PORT=3233
+MCP_PORT=3235
 MCP_SERVER_NAME=my-api
 MCP_SERVER_VERSION=1.0.0
 ```
 
+**Why HTTP is Default:**
+- ✅ **Complete MCP functionality** - All tools and resources available
+- ✅ **Production ready** - Robust error handling and comprehensive logging
+- ✅ **MCP Inspector compatible** - Works with all MCP debugging tools
+- ✅ **Easy testing** - Use any HTTP client (curl, Postman, MCP Inspector)
+- ✅ **Automatic implementation** - Tools generated automatically for new API modules
+
 ### Usage with curl
+
 ```bash
 # Test MCP request
-curl -X POST http://localhost:3233/mcp \
+curl -X POST http://localhost:3235/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -61,9 +102,10 @@ curl -X POST http://localhost:3233/mcp \
 ```
 
 ### Usage with JavaScript
+
 ```javascript
 async function callMcpTool(toolName, params = {}) {
-  const response = await fetch('http://localhost:3233/mcp', {
+  const response = await fetch('http://localhost:3235/mcp', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -82,33 +124,44 @@ async function callMcpTool(toolName, params = {}) {
   return response.json();
 }
 
-// Example usage
+// Example usage - automatically generated tools
 const apiInfo = await callMcpTool('get_api_info');
-console.log(apiInfo);
+const usersList = await callMcpTool('get_users_list', { page: 1, limit: 10 });
+const newUser = await callMcpTool('create_user', { name: 'John Doe', email: 'john@example.com' });
+console.log(apiInfo, usersList, newUser);
 ```
 
-## SSE Transport Example
+## SSE Transport Example (Explicit Request Only)
 
 ### Configuration
+
 ```bash
 MCP_ENABLED=true
 MCP_TRANSPORT=sse
 MCP_HOST=localhost
-MCP_PORT=3233
+MCP_PORT=3235
 MCP_SERVER_NAME=my-api
 MCP_SERVER_VERSION=1.0.0
 ```
 
+**When to Use SSE:**
+- ⚠️ **Limited functionality** - Only supports `initialize` method
+- ⚠️ **No tools or resources** - Redirects to HTTP transport for full functionality
+- ✅ **Real-time events** - Suitable for streaming notifications (future use)
+- ✅ **Explicit request only** - Must be specifically requested for real-time features
+
 ### Server Information
+
 ```bash
 # Get server info
-curl http://localhost:3233/mcp/info
+curl http://localhost:3235/mcp/info
 ```
 
 ### Event Stream Connection
+
 ```javascript
 // Connect to SSE stream
-const eventSource = new EventSource('http://localhost:3233/mcp/events');
+const eventSource = new EventSource('http://localhost:3235/mcp/events');
 
 eventSource.onopen = () => {
   console.log('Connected to MCP server');
@@ -130,9 +183,10 @@ eventSource.onerror = (error) => {
 ```
 
 ### Making Requests with SSE
+
 ```javascript
 async function makeMcpRequest(method, params = {}) {
-  const response = await fetch('http://localhost:3233/mcp', {
+  const response = await fetch('http://localhost:3235/mcp', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -170,7 +224,7 @@ const result = await makeMcpRequest('tools/call', {
         const eventsDiv = document.getElementById('events');
         
         // Connect to SSE
-        const eventSource = new EventSource('http://localhost:3233/mcp/events');
+        const eventSource = new EventSource('http://localhost:3235/mcp/events');
         
         eventSource.onmessage = (event) => {
             const div = document.createElement('div');
@@ -194,7 +248,7 @@ const result = await makeMcpRequest('tools/call', {
         
         async function makeRequest() {
             try {
-                const response = await fetch('http://localhost:3233/mcp', {
+                const response = await fetch('http://localhost:3235/mcp', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -222,37 +276,46 @@ const result = await makeMcpRequest('tools/call', {
 
 ## Transport Comparison
 
-| Feature | Stdio | HTTP | SSE |
-|---------|-------|------|-----|
-| **Use Case** | CLI tools, direct process | Web APIs, REST clients | Real-time web apps |
+| Feature | Stdio | HTTP (Default) | SSE (Explicit Only) |
+|---------|-------|----------------|---------------------|
+| **Use Case** | CLI tools, direct process | Web APIs, REST clients, **New API modules** | Real-time web apps (explicit request) |
 | **Complexity** | Simple | Medium | Medium |
 | **Real-time Events** | No | No | Yes |
 | **Web Compatible** | No | Yes | Yes |
 | **Firewall Friendly** | N/A | Yes | Yes |
 | **Load Balancing** | No | Yes | Yes |
 | **Debugging** | Hard | Easy | Easy |
+| **MCP Tools** | Full | **Full (Auto-generated)** | Limited (Basic connectivity only) |
+| **Implementation** | Manual | **Mandatory for new modules** | Explicit request only |
 
 ## Production Considerations
 
 ### Stdio Transport
+
 - ✅ Lowest latency
 - ✅ No network overhead
 - ❌ Not web-accessible
 - ❌ Single process only
 
-### HTTP Transport
+### HTTP Transport (Default for New Modules)
+
 - ✅ Web-compatible
 - ✅ Load balancer friendly
 - ✅ Easy to debug
+- ✅ **Mandatory MCP tool implementation**
+- ✅ **Complete functionality**
 - ❌ No real-time events
 - ❌ Higher latency
 
-### SSE Transport
+### SSE Transport (Explicit Request Only)
+
 - ✅ Real-time events
 - ✅ Web-compatible
 - ✅ Bi-directional communication
 - ❌ More complex setup
 - ❌ Browser connection limits
+- ❌ **Limited functionality** (basic connectivity only)
+- ❌ **Must be explicitly requested**
 
 ## Security Considerations
 

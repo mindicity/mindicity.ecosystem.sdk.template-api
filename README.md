@@ -175,7 +175,7 @@ APP_API_SCOPE_PREFIX=
 
 # MCP Server Configuration
 MCP_ENABLED=true
-MCP_PORT=3233
+MCP_PORT=3235
 MCP_SERVER_NAME=mindicity-api-template
 MCP_SERVER_VERSION=1.0.0
 
@@ -213,6 +213,48 @@ Invalid configuration will cause the application to fail at startup with detaile
 
 The template includes a built-in **Model Context Protocol (MCP) server** that allows AI agents to interact with your API through structured tools and resources.
 
+### 🚨 MANDATORY MCP TOOL IMPLEMENTATION
+
+**CRITICAL:** When creating new API modules, MCP tools MUST be implemented according to these rules:
+
+#### **Default Behavior: HTTP Transport**
+- **IF NO TRANSPORT SPECIFIED**: MCP tools MUST be implemented for **HTTP transport** (default)
+- **REASON**: HTTP provides complete functionality, production-ready error handling, and MCP Inspector compatibility
+- **EXAMPLE**: `"Create users API module"` → HTTP transport with full tools
+
+#### **Explicit SSE Implementation**
+- **IF SSE EXPLICITLY REQUESTED**: MCP tools MUST be implemented **ONLY for SSE transport**
+- **USAGE**: Only when real-time event streaming is specifically required
+- **EXAMPLE**: `"Create users API with SSE transport"` → SSE transport only
+
+#### **Mandatory Tool Generation**
+
+For each API endpoint created, corresponding MCP tools MUST be generated:
+
+```typescript
+// Example: Users API Module
+// Endpoints → Automatic MCP Tools
+
+GET    /users           → 'get_users_list'
+POST   /users           → 'create_user'  
+GET    /users/:id       → 'get_user_by_id'
+PUT    /users/:id       → 'update_user'
+DELETE /users/:id       → 'delete_user'
+GET    /users/search    → 'search_users'
+
+// Orders API Module  
+GET    /orders          → 'get_orders_list'
+POST   /orders          → 'create_order'
+GET    /orders/:id      → 'get_order_by_id'
+PUT    /orders/:id/status → 'update_order_status'
+POST   /orders/:id/cancel → 'cancel_order'
+```
+
+**Tool Naming Convention (MANDATORY):**
+- Pattern: `{action}_{module}_{entity}[_{qualifier}]`
+- Use snake_case for all tool names
+- Be specific and intention-based
+
 ### MCP Configuration
 
 Configure the MCP server through environment variables:
@@ -220,12 +262,25 @@ Configure the MCP server through environment variables:
 ```bash
 # MCP Server Configuration
 MCP_ENABLED=true                    # Enable/disable MCP server
-MCP_TRANSPORT=stdio                 # Transport type: stdio, http, sse
-MCP_PORT=3233                      # MCP server port (for HTTP/SSE)
+MCP_TRANSPORT=http                  # Transport type: stdio, http, sse (default: http for full functionality)
+MCP_PORT=3235                      # MCP server port (for HTTP/SSE)
 MCP_HOST=localhost                 # MCP server host (for HTTP/SSE)
 MCP_SERVER_NAME=your-api-name      # Server identifier for AI agents
 MCP_SERVER_VERSION=1.0.0           # Server version
 ```
+
+### Transport Selection Guidelines
+
+**Use HTTP transport (default) when:**
+- Creating standard API modules (automatic implementation)
+- You need full MCP functionality (tools and resources)
+- You're using MCP Inspector or other debugging tools
+- You're building production applications
+
+**Use SSE transport only when:**
+- Explicitly requested for real-time event streaming
+- You need server-sent events functionality
+- You understand the limitations (basic connectivity only)
 
 ### ✅ Enhanced Configuration: Automatic Package.json Integration
 
@@ -308,7 +363,7 @@ To connect an AI agent to your API's MCP server:
       "args": ["path/to/your/api/dist/main.js"],
       "env": {
         "MCP_ENABLED": "true",
-        "MCP_PORT": "3233"
+        "MCP_PORT": "3235"
       }
     }
   }
@@ -322,13 +377,13 @@ When the application starts, you'll see the MCP server information in the logs:
 🤖 MCP Server: stdio transport (name: your-api-name)
 
 # HTTP/SSE transports with URLs
-🤖 MCP Server: http transport (localhost:3233) (name: your-api-name)
-   📨 MCP Endpoint: http://localhost:3233/mcp
+🤖 MCP Server: http transport (localhost:3235) (name: your-api-name)
+   📨 MCP Endpoint: http://localhost:3235/mcp
 
-🤖 MCP Server: sse transport (localhost:3233) (name: your-api-name)
-   📡 MCP Events: http://localhost:3233/mcp/events
-   📨 MCP Requests: http://localhost:3233/mcp
-   ℹ️  MCP Info: http://localhost:3233/mcp/info
+🤖 MCP Server: sse transport (localhost:3235) (name: your-api-name)
+   📡 MCP Events: http://localhost:3235/mcp/events
+   📨 MCP Requests: http://localhost:3235/mcp
+   ℹ️  MCP Info: http://localhost:3235/mcp/info
 ```
 
 ### MCP Server Architecture
@@ -987,7 +1042,7 @@ Successfully implemented **Model Context Protocol (MCP)** server with **multiple
 
 **For Web Clients (HTTP):**
 ```javascript
-const response = await fetch('http://localhost:3233/mcp', {
+const response = await fetch('http://localhost:3235/mcp', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -1001,7 +1056,7 @@ const response = await fetch('http://localhost:3233/mcp', {
 
 **For Real-time Web Apps (SSE):**
 ```javascript
-const eventSource = new EventSource('http://localhost:3233/mcp/events');
+const eventSource = new EventSource('http://localhost:3235/mcp/events');
 eventSource.addEventListener('connected', (event) => {
   console.log('Connected to MCP server:', JSON.parse(event.data));
 });

@@ -4,6 +4,88 @@
 
 The Mindicity API Template includes a built-in **Model Context Protocol (MCP) server** that enables AI agents to interact with your API through structured tools and resources. This integration allows AI assistants like Kiro to query API information, check health status, access Swagger documentation, and list available endpoints.
 
+## 🚨 MANDATORY MCP TOOL IMPLEMENTATION
+
+**CRITICAL:** When creating new API modules, MCP tools MUST be implemented according to these rules:
+
+### Default Behavior: HTTP Transport
+
+**IF NO TRANSPORT SPECIFIED**: MCP tools MUST be implemented for **HTTP transport** (default)
+
+```typescript
+// User Request Examples → MANDATORY HTTP Implementation
+"Create users API module"
+"Create users API with endpoints"
+"Add users module with CRUD operations"
+"Implement users management API"
+
+// Result: HTTP transport with full MCP tools mandatorily implemented
+```
+
+**Why HTTP is Default:**
+- ✅ **Complete MCP functionality** - All tools and resources available
+- ✅ **Production ready** - Robust error handling and comprehensive logging
+- ✅ **MCP Inspector compatible** - Works with all MCP debugging tools
+- ✅ **Easy testing** - Use any HTTP client (curl, Postman, MCP Inspector)
+- ✅ **RESTful integration** - Standard HTTP requests/responses
+
+### Explicit SSE Implementation
+
+**IF SSE EXPLICITLY REQUESTED**: MCP tools MUST be implemented **ONLY for SSE transport**
+
+```typescript
+// User Request Examples → SSE Implementation
+"Create users API with SSE transport"
+"Create users API for real-time notifications"
+"Create users API with server-sent events"
+"Create users API module for SSE"
+"Create users API with real-time updates"
+
+// Result: SSE transport only (basic connectivity, limited functionality)
+```
+
+**SSE Characteristics:**
+- ⚠️ **Limited functionality** - Only supports `initialize` method
+- ⚠️ **No tools or resources** - Redirects to HTTP transport for full functionality
+- ✅ **Real-time events** - Suitable for streaming notifications (future use)
+- ✅ **Lightweight** - Minimal overhead for basic connectivity
+
+### Mandatory Tool Generation
+
+For each API endpoint created, corresponding MCP tools MUST be generated:
+
+```typescript
+// Pattern: {action}_{module}_{entity}[_{qualifier}]
+
+// Users Module Example
+GET    /users           → 'get_users_list'
+POST   /users           → 'create_user'  
+GET    /users/:id       → 'get_user_by_id'
+PUT    /users/:id       → 'update_user'
+DELETE /users/:id       → 'delete_user'
+GET    /users/search    → 'search_users_by_email'
+
+// Orders Module Example
+GET    /orders          → 'get_orders_list'
+POST   /orders          → 'create_order'
+GET    /orders/:id      → 'get_order_by_id'
+PUT    /orders/:id/status → 'update_order_status'
+POST   /orders/:id/cancel → 'cancel_order'
+
+// Products Module Example
+GET    /products        → 'get_products_list'
+POST   /products        → 'create_product'
+GET    /products/:id    → 'get_product_by_id'
+PUT    /products/:id    → 'update_product'
+DELETE /products/:id    → 'delete_product'
+```
+
+**Tool Naming Convention (MANDATORY):**
+- Pattern: `{action}_{module}_{entity}[_{qualifier}]`
+- Use snake_case for all tool names
+- Be specific and intention-based
+- One tool per endpoint/intention
+
 ## Transport Architecture
 
 ### Default Transport: HTTP
@@ -28,6 +110,7 @@ The Mindicity API Template includes a built-in **Model Context Protocol (MCP) se
 ### Transport Selection Guidelines
 
 **Use HTTP transport (default) when:**
+- Creating standard API modules (mandatory implementation)
 - You need full MCP functionality (tools and resources)
 - You're using MCP Inspector or other debugging tools
 - You want the most robust and tested implementation
@@ -86,7 +169,7 @@ MCP_HOST=localhost
 MCP_PORT=3235
 ```
 - **Endpoint**: `http://localhost:3235/mcp`
-- **Features**: Complete tools and resources implementation
+- **Features**: Complete tools and resources implementation (automatic for new modules)
 - **Use Case**: Production applications, MCP Inspector, full functionality
 
 **STDIO Transport:**
@@ -168,7 +251,7 @@ The MCP configuration is validated using Zod with enhanced error handling:
 const McpConfigSchema = z.object({
   enabled: z.boolean().default(true),
   transport: z.enum(['stdio', 'http', 'sse']).default('stdio'),
-  port: z.number().int().min(1, 'MCP port must be at least 1').max(65535, 'MCP port must be at most 65535').default(3233),
+  port: z.number().int().min(1, 'MCP port must be at least 1').max(65535, 'MCP port must be at most 65535').default(3235),
   host: z.string().min(1, 'MCP host cannot be empty').default('localhost'),
   serverName: z.string().min(1, 'MCP server name cannot be empty').default('mindicity-api-template'),
   serverVersion: z.string().min(1, 'MCP server version cannot be empty').default('1.0.0'),
@@ -202,11 +285,11 @@ Provides HTTP endpoints for MCP communication. Suitable for web-based AI agents 
 ```bash
 MCP_TRANSPORT=http
 MCP_HOST=localhost
-MCP_PORT=3233
+MCP_PORT=3235
 ```
 
 **Endpoints:**
-- `POST http://localhost:3233/mcp` - MCP request endpoint
+- `POST http://localhost:3235/mcp` - MCP request endpoint
 
 **Use Cases:**
 - Web-based AI agents
@@ -221,13 +304,13 @@ Combines HTTP requests with real-time event streaming. Perfect for web applicati
 ```bash
 MCP_TRANSPORT=sse
 MCP_HOST=localhost
-MCP_PORT=3233
+MCP_PORT=3235
 ```
 
 **Endpoints:**
-- `GET http://localhost:3233/mcp/events` - SSE event stream
-- `POST http://localhost:3233/mcp` - MCP request endpoint
-- `GET http://localhost:3233/mcp/info` - Server information
+- `GET http://localhost:3235/mcp/events` - SSE event stream
+- `POST http://localhost:3235/mcp` - MCP request endpoint
+- `GET http://localhost:3235/mcp/info` - Server information
 
 **Use Cases:**
 - Real-time web applications
@@ -395,7 +478,7 @@ To connect Kiro to your API's MCP server, add this configuration to your MCP set
       "args": ["path/to/your/api/dist/main.js"],
       "env": {
         "MCP_ENABLED": "true",
-        "MCP_PORT": "3233",
+        "MCP_PORT": "3235",
         "MCP_SERVER_NAME": "your-api-name",
         "MCP_SERVER_VERSION": "1.0.0"
       }
@@ -409,7 +492,7 @@ To connect Kiro to your API's MCP server, add this configuration to your MCP set
 When the application starts with MCP enabled, you should see these log messages:
 
 ```
-🤖 MCP Server: stdio transport (port: 3233, name: mindicity-api-template)
+🤖 MCP Server: stdio transport (port: 3235, name: mindicity-api-template)
 🚀 Application is running on: http://localhost:3232/mcapi
 📚 Swagger UI: http://localhost:3232/mcapi/docs/swagger/ui
 📋 Swagger Specs: http://localhost:3232/mcapi/docs/swagger/specs
@@ -613,7 +696,7 @@ This validation test script verifies:
 
 **Solutions:**
 1. Check `MCP_ENABLED=true` in `.env`
-2. Verify port is not in use: `netstat -ano | findstr :3233`
+2. Verify port is not in use: `netstat -ano | findstr :3235`
 3. Check application logs for errors
 4. Ensure all dependencies installed: `npm install`
 
@@ -643,7 +726,7 @@ This validation test script verifies:
 
 ### Port Already in Use
 
-**Symptom:** Error about port 3233 being in use
+**Symptom:** Error about port 3235 being in use
 
 **Solutions:**
 1. Change `MCP_PORT` to a different port
@@ -709,6 +792,196 @@ This validation test script verifies:
 - **Test thoroughly**: Add unit and E2E tests for custom tools
 - **Monitor usage**: Log tool usage for debugging and optimization
 
+## Mandatory MCP Tool Implementation Examples
+
+### Example 1: Users API Module (Default HTTP)
+
+**User Request**: `"Create users API module with CRUD operations"`
+
+**Mandatory Implementation**:
+```typescript
+// Generated MCP Tools (HTTP Transport)
+const userTools = [
+  {
+    name: 'get_users_list',
+    description: 'Retrieve a list of users with optional filtering and pagination',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page: { type: 'number', description: 'Page number for pagination' },
+        limit: { type: 'number', description: 'Number of items per page' },
+        search: { type: 'string', description: 'Search term for filtering users' },
+        status: { type: 'string', enum: ['active', 'inactive'], description: 'Filter by user status' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'create_user',
+    description: 'Create a new user account',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Full name of the user' },
+        email: { type: 'string', format: 'email', description: 'Email address' },
+        role: { type: 'string', enum: ['admin', 'user'], description: 'User role' },
+      },
+      required: ['name', 'email'],
+    },
+  },
+  {
+    name: 'get_user_by_id',
+    description: 'Retrieve a specific user by their ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Unique user identifier' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'update_user',
+    description: 'Update user information',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Unique user identifier' },
+        name: { type: 'string', description: 'Full name of the user' },
+        email: { type: 'string', format: 'email', description: 'Email address' },
+        role: { type: 'string', enum: ['admin', 'user'], description: 'User role' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'delete_user',
+    description: 'Delete a user account',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Unique user identifier' },
+      },
+      required: ['id'],
+    },
+  },
+];
+```
+
+**Transport Configuration**:
+```bash
+MCP_TRANSPORT=http
+MCP_PORT=3235
+MCP_HOST=localhost
+```
+
+**Result**: Full HTTP transport with complete MCP functionality
+
+### Example 2: Notifications API Module (Explicit SSE)
+
+**User Request**: `"Create notifications API with SSE transport for real-time updates"`
+
+**Mandatory Implementation**:
+```typescript
+// SSE Transport Only (Basic Connectivity)
+const sseTransport = {
+  transport: 'sse',
+  features: ['initialize'],
+  limitations: 'Tools and resources redirect to HTTP transport',
+  realTimeEvents: true,
+  endpoints: {
+    events: 'http://localhost:3235/mcp/events',
+    requests: 'http://localhost:3235/mcp',
+    info: 'http://localhost:3235/mcp/info'
+  }
+};
+```
+
+**Transport Configuration**:
+```bash
+MCP_TRANSPORT=sse
+MCP_PORT=3235
+MCP_HOST=localhost
+```
+
+**Result**: SSE transport for real-time events, HTTP fallback for tools
+
+### Example 3: Orders API Module (Default HTTP)
+
+**User Request**: `"Add orders module with status management"`
+
+**Mandatory Implementation**:
+```typescript
+// Generated MCP Tools (HTTP Transport)
+const orderTools = [
+  {
+    name: 'get_orders_list',
+    description: 'Retrieve a list of orders with optional filtering',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string', description: 'Filter orders by user ID' },
+        status: { type: 'string', enum: ['pending', 'completed', 'cancelled'], description: 'Filter by order status' },
+        fromDate: { type: 'string', format: 'date', description: 'Filter orders from this date' },
+        toDate: { type: 'string', format: 'date', description: 'Filter orders to this date' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'create_order',
+    description: 'Create a new order',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string', description: 'User ID placing the order' },
+        items: { type: 'array', description: 'Order items' },
+        totalAmount: { type: 'number', description: 'Total order amount' },
+      },
+      required: ['userId', 'items', 'totalAmount'],
+    },
+  },
+  {
+    name: 'get_order_by_id',
+    description: 'Retrieve a specific order by ID',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Unique order identifier' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'update_order_status',
+    description: 'Update the status of an order',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Unique order identifier' },
+        status: { type: 'string', enum: ['pending', 'processing', 'completed', 'cancelled'], description: 'New order status' },
+        reason: { type: 'string', description: 'Reason for status change (optional)' },
+      },
+      required: ['id', 'status'],
+    },
+  },
+  {
+    name: 'cancel_order',
+    description: 'Cancel an existing order',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Unique order identifier' },
+        reason: { type: 'string', description: 'Reason for cancellation' },
+      },
+      required: ['id', 'reason'],
+    },
+  },
+];
+```
+
+**Result**: Full HTTP transport with order-specific MCP tools
+
 ## Integration with Bootstrap Process
 
 When bootstrapping a new API from this template:
@@ -717,6 +990,11 @@ When bootstrapping a new API from this template:
 2. **Server name is updated**: `MCP_SERVER_NAME` is set to new API name
 3. **Tools remain functional**: Built-in tools work immediately
 4. **Customization ready**: Add custom tools specific to your API domain
+5. **🚨 MANDATORY TOOL IMPLEMENTATION**: MCP tools MUST be created for new API modules
+   - **Default**: HTTP transport with full functionality
+   - **SSE Only**: When explicitly requested for real-time features
+   - **One tool per endpoint**: Each API endpoint gets corresponding MCP tool
+   - **Consistent naming**: Follow `{action}_{module}_{entity}` pattern
 
 ## Example: Custom Tool Implementation
 

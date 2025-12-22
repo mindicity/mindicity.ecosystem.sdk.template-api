@@ -35,7 +35,7 @@ nest generate service modules/your-api-name --no-spec
 1. **Consistency:** Ensures all APIs follow the same architecture patterns
 2. **Quality:** Pre-tested, production-ready foundation with all tests passing
 3. **Speed:** No setup time - immediate development start
-4. **Compliance:** Automatic adherence to all Mindicity standards
+4. **Compliance:** Mandatory adherence to all Mindicity standards
 5. **Maintenance:** Easier updates and security patches across all APIs
 
 ### What You Get from Bootstrap
@@ -405,7 +405,7 @@ async findUsersPaginated(page: number, limit: number): Promise<UserData[]> {
 #### Benefits of SqlQueryBuilder
 
 1. **Type Safety**: Compile-time parameter validation
-2. **SQL Injection Prevention**: Automatic parameter binding
+2. **SQL Injection Prevention**: Mandatory parameter binding
 3. **Maintainability**: Readable, chainable API
 4. **Consistency**: Standardized query patterns across codebase
 5. **Testing**: Easier to mock and test query logic
@@ -921,6 +921,57 @@ export class UserService {
 
 **CRITICAL REQUIREMENT:** Every new API module MUST be integrated with MCP by adding corresponding tools that expose the module's functionality to AI agents.
 
+### 🚨 MANDATORY MCP TOOL IMPLEMENTATION RULES
+
+**CRITICAL REQUIREMENT:** When creating new API modules with endpoints, MCP tools MUST be implemented according to these mandatory rules:
+
+#### **Default Implementation: HTTP Transport**
+- **IF NO TRANSPORT SPECIFIED**: MCP tools MUST be implemented for **HTTP transport** (default)
+- **REASON**: HTTP provides complete functionality, production-ready error handling, and MCP Inspector compatibility
+
+#### **Explicit SSE Implementation**
+- **IF SSE EXPLICITLY REQUESTED**: MCP tools MUST be implemented **ONLY for SSE transport**
+- **USAGE**: Only when real-time event streaming is specifically required
+- **LIMITATION**: SSE transport provides basic connectivity only
+
+#### **Implementation Decision Matrix**
+
+| User Request | MCP Implementation | Transport Used | Functionality |
+|-------------|-------------------|----------------|---------------|
+| "Create users API module" | ✅ **MANDATORY HTTP** | HTTP | Complete tools + resources |
+| "Create users API with endpoints X, Y, Z" | ✅ **MANDATORY HTTP** | HTTP | Complete tools + resources |
+| "Create users API module for SSE" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
+| "Create users API with SSE transport" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
+| "Create users API with real-time events" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
+
+#### **Mandatory Tool Generation Rules**
+
+**CRITICAL:** For each API endpoint created, corresponding MCP tools MUST be implemented:
+
+```typescript
+// Example: Users API Module
+// Endpoints → MANDATORY MCP Tools
+
+GET    /users           → 'get_users_list'
+POST   /users           → 'create_user'  
+GET    /users/:id       → 'get_user_by_id'
+PUT    /users/:id       → 'update_user'
+DELETE /users/:id       → 'delete_user'
+GET    /users/search    → 'search_users'
+
+// Orders API Module  
+GET    /orders          → 'get_orders_list'
+POST   /orders          → 'create_order'
+GET    /orders/:id      → 'get_order_by_id'
+PUT    /orders/:id/status → 'update_order_status'
+POST   /orders/:id/cancel → 'cancel_order'
+```
+
+**Tool Naming Convention (MANDATORY):**
+- Pattern: `{action}_{module}_{entity}[_{qualifier}]`
+- Use snake_case for all tool names
+- Be specific and intention-based
+
 ### MCP Transport Architecture
 
 **Default Transport: HTTP (Recommended)**
@@ -938,10 +989,37 @@ All MCP tools and resources are implemented via **HTTP transport by default**, p
 - **STDIO**: Complete functionality via standard input/output (command-line integration)
 - **SSE**: Basic connectivity only, redirects to HTTP for tools/resources (limited use)
 
-**Transport Selection:**
-- Use **HTTP** (default) for production applications and full functionality
-- Use **STDIO** for command-line AI agent integration
-- Use **SSE** only when explicitly required for real-time events (tools/resources still use HTTP)
+#### **When to Use SSE Transport (EXPLICIT REQUEST ONLY)**
+
+**SSE transport should ONLY be implemented when explicitly requested for these specific use cases:**
+
+```typescript
+// ✅ EXPLICIT SSE REQUESTS - Implement SSE transport
+"Create users API with SSE transport"
+"Create users API for real-time notifications" 
+"Create users API with server-sent events"
+"Create users API module for SSE"
+"Create users API with real-time updates"
+
+// ✅ DEFAULT HTTP REQUESTS - Implement HTTP transport  
+"Create users API module"
+"Create users API with endpoints"
+"Create users API"
+"Add users module with CRUD operations"
+"Implement users management API"
+```
+
+**SSE Implementation Characteristics:**
+- **Limited Functionality**: Only `initialize` method supported
+- **Basic Connectivity**: Provides connection status and server info
+- **Real-time Events**: Suitable for live notifications and updates
+- **Redirect Pattern**: Tools and resources redirect to HTTP transport
+
+**HTTP Implementation Characteristics (DEFAULT):**
+- **Complete Functionality**: All tools and resources available
+- **Production Ready**: Full error handling and logging
+- **MCP Inspector Compatible**: Works with all debugging tools
+- **RESTful Integration**: Standard HTTP requests/responses
 
 ### MCP Architecture Overview
 
@@ -1840,6 +1918,10 @@ describe('MCP E2E Tests', () => {
 - [ ] Module: Import infrastructure modules (DatabaseModule, etc.)
 
 **MCP Integration (MANDATORY):**
+- [ ] **MANDATORY IMPLEMENTATION**: MCP tools MUST be implemented for HTTP transport (default)
+- [ ] **SSE ONLY IF REQUESTED**: Implement SSE transport only when explicitly requested
+- [ ] **ONE TOOL PER ENDPOINT**: Each API endpoint MUST have corresponding MCP tool implemented
+- [ ] **TOOL NAMING**: Follow `{action}_{module}_{entity}` pattern (snake_case)
 - [ ] Add service to `TransportDependencies` interface in `transport-dependencies.ts`
 - [ ] Update `createTransportDependencies` function to include new service
 - [ ] Inject service in `McpServerService` constructor
