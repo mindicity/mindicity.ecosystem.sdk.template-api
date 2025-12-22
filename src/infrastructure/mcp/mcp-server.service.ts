@@ -20,13 +20,51 @@ import { TransportFactory } from './transports/transport-factory';
 /**
  * MCP Server Service provides Model Context Protocol server functionality.
  * 
- * This service creates an MCP server that can be connected to AI agents,
- * allowing them to interact with the API through structured tools and resources.
+ * MCP (Model Context Protocol) is a standardized protocol that allows AI agents
+ * to interact with external systems through structured tools and resources.
+ * 
+ * This service creates an MCP server that exposes the API functionality to AI agents,
+ * enabling them to:
+ * 
+ * **TOOLS** - Execute specific API operations:
+ * - Call API endpoints with proper parameters
+ * - Perform CRUD operations on data
+ * - Execute business logic through service methods
+ * - Get real-time data and status information
+ * 
+ * **RESOURCES** - Access API documentation and specifications:
+ * - Read OpenAPI/Swagger specifications
+ * - Understand API structure and capabilities
+ * - Get schema definitions and examples
+ * - Access endpoint documentation
+ * 
+ * **TRANSPORTS** - Multiple connection methods:
+ * - HTTP: RESTful API calls over HTTP
+ * - SSE: Server-Sent Events for real-time communication
+ * - STDIO: Standard input/output for command-line integration
+ * 
+ * The MCP server automatically:
+ * - Discovers available API endpoints and converts them to tools
+ * - Generates comprehensive tool descriptions for AI agents
+ * - Provides access to API documentation as resources
+ * - Handles authentication and error management
+ * - Logs all interactions for monitoring and debugging
+ * 
+ * AI agents can use this MCP server to:
+ * - Understand what the API can do by reading resources
+ * - Execute API operations by calling tools
+ * - Get real-time data and perform automated tasks
+ * - Integrate the API into larger workflows and processes
  * 
  * @example
  * ```typescript
  * // The MCP server automatically starts when the module initializes
- * // and provides tools for AI agents to interact with the API
+ * // AI agents can then connect and use tools like:
+ * // - get_api_health: Check server status
+ * // - get_users_list: Retrieve user data
+ * // - create_user: Add new users
+ * // And access resources like:
+ * // - swagger://api-docs/swagger/specs: Complete API documentation
  * ```
  */
 @Injectable()
@@ -146,6 +184,20 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Set up dynamic MCP tool handlers that automatically create tools for each API endpoint.
+   * 
+   * This method configures the MCP server to handle four types of requests:
+   * 
+   * 1. **ListTools** - Returns all available tools (API endpoints) that AI agents can call
+   * 2. **CallTool** - Executes a specific tool (API endpoint) with provided parameters
+   * 3. **ListResources** - Returns all available resources (API documentation) that agents can read
+   * 4. **ReadResource** - Fetches the content of a specific resource (documentation file)
+   * 
+   * Each tool corresponds to an API endpoint and provides:
+   * - Clear description of what the tool does
+   * - Input schema defining required and optional parameters
+   * - Proper error handling and response formatting
+   * - Integration with existing service methods
+   * 
    * @private
    */
   private setupDynamicToolHandlers(): void {
@@ -190,6 +242,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Generate dynamic tools based on available API endpoints.
+   * Each tool represents a specific API operation that AI agents can perform.
    * @private
    */
   private generateDynamicTools(): Array<{
@@ -205,12 +258,29 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
     
     // Define available API endpoints that become MCP tools
+    // Each tool provides AI agents with a specific capability to interact with the API
     const apiEndpoints = [
       {
         name: 'get_api_health',
         method: 'GET',
         path: `${baseUrl}/health`,
-        description: 'Check the health status of the API server',
+        description: `Check the current health and operational status of the ${this.mcpConfig.serverName} API server. 
+        
+This tool provides comprehensive health information including:
+- Server status (healthy/unhealthy)
+- Current timestamp
+- Server name and version
+- Environment details
+- Uptime information
+- System resource status
+
+Use this tool to:
+- Verify the API is operational before making other requests
+- Monitor server health in automated workflows
+- Troubleshoot connectivity issues
+- Get basic server information for debugging
+
+Returns: JSON object with health status, timestamp, server details, and operational metrics.`,
         inputSchema: {
           type: 'object',
           properties: {},
@@ -284,6 +354,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Generate dynamic resources based on available API documentation.
+   * Resources provide AI agents with access to API specifications and documentation.
    * @private
    */
   private generateDynamicResources(): Array<{
@@ -295,12 +366,31 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     const appConfig = this.configService.get('app');
     const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
     
-    // Define available API documentation resources - only specs, no UI
+    // Define available API documentation resources
+    // Resources allow AI agents to understand the complete API structure and capabilities
     const apiResources = [
       {
         uri: `swagger://api-docs${apiScopePrefix}/swagger/specs`,
-        name: 'API Swagger Specification',
-        description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+        name: 'API OpenAPI Specification',
+        description: `Complete OpenAPI 3.0 specification for the ${this.mcpConfig.serverName} API.
+
+This resource contains the full API documentation including:
+- All available endpoints with HTTP methods and paths
+- Request/response schemas and data models
+- Parameter definitions and validation rules
+- Authentication requirements
+- Error response formats
+- Example requests and responses
+
+Use this resource to:
+- Understand the complete API structure and capabilities
+- Generate proper API requests with correct parameters
+- Validate request/response formats
+- Learn about available endpoints and their purposes
+- Get schema definitions for data models
+
+Format: JSON document following OpenAPI 3.0 specification standard.
+Content: Machine-readable API specification that can be used to generate client code, documentation, or API calls.`,
         mimeType: 'application/json',
       },
     ];
@@ -435,18 +525,67 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Handle get_api_health tool call using the HealthService.
+   * 
+   * This tool provides comprehensive health information about the API server,
+   * including operational status, version info, and system metrics.
+   * 
    * @private
    */
   private handleGetApiHealth(): { content: Array<{ type: string; text: string }> } {
-    const healthStatus = this.healthService.getHealthStatus();
+    try {
+      const healthStatus = this.healthService.getHealthStatus();
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(healthStatus, null, 2),
+      // Add MCP-specific metadata to help AI agents understand the response
+      const mcpResponse = {
+        tool: 'get_api_health',
+        description: 'API server health status and operational information',
+        timestamp: new Date().toISOString(),
+        data: healthStatus,
+        usage: {
+          purpose: 'Monitor API server health and operational status',
+          interpretation: {
+            status: 'healthy = server is operational, unhealthy = server has issues',
+            timestamp: 'Current server time when health check was performed',
+            server: 'API server name and identification',
+            version: 'Current API version deployed',
+            environment: 'Deployment environment (development, staging, production)',
+            uptime: 'How long the server has been running',
+          },
+          nextSteps: [
+            'If status is healthy: API is ready for requests',
+            'If status is unhealthy: Check logs and system resources',
+            'Use this before making other API calls to ensure availability',
+          ],
         },
-      ],
-    };
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(mcpResponse, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      this.logger.error('Error getting API health status', { err: error });
+      
+      const errorResponse = {
+        tool: 'get_api_health',
+        error: 'Failed to retrieve health status',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+        suggestion: 'Check server logs and ensure health service is properly configured',
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(errorResponse, null, 2),
+          },
+        ],
+      };
+    }
   }
 }
