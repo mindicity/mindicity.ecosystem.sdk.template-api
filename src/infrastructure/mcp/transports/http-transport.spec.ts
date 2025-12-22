@@ -1,7 +1,9 @@
 import { Server as HttpServer } from 'http';
 
+import { HealthService } from '../../../modules/health/health.service';
 import { TransportConfig } from './base-transport';
 import { HttpTransport } from './http-transport';
+import { createTransportDependencies } from './transport-dependencies';
 
 // Mock the HTTP server
 jest.mock('http', () => ({
@@ -12,6 +14,7 @@ describe('HttpTransport', () => {
   let transport: HttpTransport;
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
+  let mockHealthService: jest.Mocked<HealthService>;
   let config: TransportConfig;
 
   beforeEach(() => {
@@ -22,6 +25,28 @@ describe('HttpTransport', () => {
       serverName: 'test-server',
       serverVersion: '1.0.0',
     };
+
+    mockHealthService = {
+      getHealthStatus: jest.fn().mockReturnValue({
+        status: 'healthy',
+        timestamp: '2025-12-22T14:00:00.000Z',
+        server: 'test-server',
+        version: '1.0.0',
+        uptime: 123.456,
+        memory: {
+          rss: 124878848,
+          heapTotal: 45776896,
+          heapUsed: 42331056,
+          external: 2981905,
+          arrayBuffers: 8466399,
+        },
+        environment: 'test',
+      }),
+      getSimpleHealthStatus: jest.fn().mockReturnValue({
+        status: 'ok',
+        version: '1.0.0',
+      }),
+    } as any;
 
     mockServer = {
       listen: jest.fn().mockImplementation((port: number, host: string, callback?: () => void) => {
@@ -42,7 +67,10 @@ describe('HttpTransport', () => {
     const { createServer } = require('http');
     createServer.mockReturnValue(mockServer);
 
-    transport = new HttpTransport(config);
+    const dependencies = createTransportDependencies({
+      healthService: mockHealthService,
+    });
+    transport = new HttpTransport(config, dependencies);
   });
 
   afterEach(() => {
@@ -259,7 +287,7 @@ describe('HttpTransport', () => {
         id: 2,
         error: {
           code: -32601,
-          message: 'Method not implemented in HTTP transport',
+          message: 'Method not implemented in HTTP transport: unknown',
         },
       });
     });
@@ -289,7 +317,10 @@ describe('HttpTransport', () => {
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
       // Don't call connect first
-      const freshTransport = new HttpTransport(config);
+      const freshDependencies = createTransportDependencies({
+        healthService: mockHealthService,
+      });
+      const freshTransport = new HttpTransport(config, freshDependencies);
 
       expect(() => {
         (freshTransport as any).handleMcpRequest(request, mockTransport);

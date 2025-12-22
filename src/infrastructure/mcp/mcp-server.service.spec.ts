@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
+import { HealthService } from '../../modules/health/health.service';
 
 import { McpServerService } from './mcp-server.service';
 import { TransportFactory } from './transports/transport-factory';
@@ -19,6 +20,7 @@ describe('McpServerService', () => {
   let configService: ConfigService;
   let loggerService: ContextLoggerService;
   let mockTransport: any;
+  let mockHealthService: any;
 
   const mockMcpConfig = {
     enabled: true,
@@ -68,11 +70,34 @@ describe('McpServerService', () => {
     (TransportFactory.createTransport as jest.Mock).mockReturnValue(mockTransport);
     (TransportFactory.validateConfig as jest.Mock).mockImplementation(() => {});
 
+    mockHealthService = {
+      getHealthStatus: jest.fn().mockReturnValue({
+        status: 'healthy',
+        timestamp: '2025-12-22T14:00:00.000Z',
+        server: 'test-server',
+        version: '1.0.0',
+        uptime: 123.456,
+        memory: {
+          rss: 124878848,
+          heapTotal: 45776896,
+          heapUsed: 42331056,
+          external: 2981905,
+          arrayBuffers: 8466399,
+        },
+        environment: 'test',
+      }),
+      getSimpleHealthStatus: jest.fn().mockReturnValue({
+        status: 'ok',
+        version: '1.0.0',
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         McpServerService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: ContextLoggerService, useValue: mockLoggerService },
+        { provide: HealthService, useValue: mockHealthService },
       ],
     }).compile();
 
@@ -109,6 +134,7 @@ describe('McpServerService', () => {
           McpServerService,
           { provide: ConfigService, useValue: { get: () => disabledConfig } },
           { provide: ContextLoggerService, useValue: loggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -225,6 +251,8 @@ describe('McpServerService', () => {
         host: mockMcpConfig.host,
         serverName: mockMcpConfig.serverName,
         serverVersion: mockMcpConfig.serverVersion,
+      }, {
+        healthService: mockHealthService,
       });
       expect(mockTransport.connect).toHaveBeenCalled();
     });
@@ -258,23 +286,6 @@ describe('McpServerService', () => {
   });
 
   describe('tool handlers', () => {
-    it('should handle get_api_info tool', async () => {
-      const result = await (service as any).handleGetApiInfo();
-
-      expect(result).toHaveProperty('content');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0]).toHaveProperty('type', 'text');
-      
-      const apiInfo = JSON.parse(result.content[0].text);
-      expect(apiInfo).toHaveProperty('name', 'test-api');
-      expect(apiInfo).toHaveProperty('version', '1.0.0');
-      expect(apiInfo).toHaveProperty('port', 3232);
-      expect(apiInfo).toHaveProperty('apiPrefix', '/mcapi');
-      expect(apiInfo).toHaveProperty('apiScopePrefix', '/test');
-      expect(apiInfo).toHaveProperty('corsEnabled', true);
-      expect(apiInfo).toHaveProperty('swaggerUrl');
-    });
-
     it('should handle get_api_health tool', async () => {
       const result = await (service as any).handleGetApiHealth();
 
@@ -290,48 +301,6 @@ describe('McpServerService', () => {
       expect(healthStatus.memory).toHaveProperty('heapUsed');
       expect(healthStatus.memory).toHaveProperty('heapTotal');
       expect(healthStatus.memory).toHaveProperty('rss');
-    });
-
-    it('should handle list_api_endpoints tool', async () => {
-      const result = await (service as any).handleListApiEndpoints();
-
-      expect(result).toHaveProperty('content');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0]).toHaveProperty('type', 'text');
-      
-      const endpoints = JSON.parse(result.content[0].text);
-      expect(Array.isArray(endpoints)).toBe(true);
-      expect(endpoints.length).toBeGreaterThan(0);
-      
-      // Check structure of first endpoint
-      expect(endpoints[0]).toHaveProperty('method');
-      expect(endpoints[0]).toHaveProperty('path');
-      expect(endpoints[0]).toHaveProperty('description');
-      
-      // Should include health endpoint
-      const healthEndpoint = endpoints.find((ep: any) => ep.path.includes('/health'));
-      expect(healthEndpoint).toBeDefined();
-      expect(healthEndpoint.method).toBe('GET');
-    });
-
-    it('should include MCP endpoints in list when MCP is enabled', async () => {
-      // Set up HTTP transport to have MCP endpoints
-      const httpConfig = { ...mockMcpConfig, transport: 'http' as const };
-      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
-        if (key === 'mcp') return httpConfig;
-        if (key === 'app') return mockAppConfig;
-        return null;
-      });
-
-      const result = await (service as any).handleListApiEndpoints();
-      const endpoints = JSON.parse(result.content[0].text);
-      
-      // The service doesn't automatically include MCP endpoints in the list
-      // It only includes the standard API endpoints
-      expect(endpoints.length).toBeGreaterThan(0);
-      expect(endpoints[0]).toHaveProperty('method');
-      expect(endpoints[0]).toHaveProperty('path');
-      expect(endpoints[0]).toHaveProperty('description');
     });
   });
 
@@ -349,6 +318,7 @@ describe('McpServerService', () => {
           McpServerService,
           { provide: ConfigService, useValue: configService },
           { provide: ContextLoggerService, useValue: loggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -370,6 +340,7 @@ describe('McpServerService', () => {
           McpServerService,
           { provide: ConfigService, useValue: configService },
           { provide: ContextLoggerService, useValue: loggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -412,6 +383,7 @@ describe('McpServerService', () => {
             } 
           },
           { provide: ContextLoggerService, useValue: loggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -424,6 +396,8 @@ describe('McpServerService', () => {
         host: httpConfig.host,
         serverName: httpConfig.serverName,
         serverVersion: httpConfig.serverVersion,
+      }, {
+        healthService: mockHealthService,
       });
       expect(httpTransport.connect).toHaveBeenCalled();
       expect(loggerService.info).toHaveBeenCalledWith('MCP server connected and ready for AI agent connections', {
@@ -466,6 +440,7 @@ describe('McpServerService', () => {
             } 
           },
           { provide: ContextLoggerService, useValue: loggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -478,6 +453,8 @@ describe('McpServerService', () => {
         host: sseConfig.host,
         serverName: sseConfig.serverName,
         serverVersion: sseConfig.serverVersion,
+      }, {
+        healthService: mockHealthService,
       });
       expect(sseTransport.connect).toHaveBeenCalled();
       expect(loggerService.info).toHaveBeenCalledWith('MCP server connected and ready for AI agent connections', {

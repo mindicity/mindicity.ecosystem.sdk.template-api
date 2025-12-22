@@ -7,7 +7,29 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Health status",
+            "description": "Basic health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleHealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Basic health check endpoint",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/mcapi/health/project/status": {
+      "get": {
+        "operationId": "HealthController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Comprehensive health status with system metrics",
             "content": {
               "application/json": {
                 "schema": {
@@ -17,7 +39,7 @@
             }
           }
         },
-        "summary": "Health check endpoint",
+        "summary": "Comprehensive health status endpoint",
         "tags": [
           "health"
         ]
@@ -46,19 +68,92 @@
       }
     },
     "schemas": {
-      "HealthResponseDto": {
+      "SimpleHealthResponseDto": {
         "type": "object",
         "properties": {
           "status": {
+            "description": "Basic health status",
             "type": "string"
           },
           "version": {
+            "description": "Application version",
             "type": "string"
           }
         },
         "required": [
           "status",
           "version"
+        ]
+      },
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "Health status of the application",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "ISO timestamp when health check was performed",
+            "type": "string"
+          },
+          "server": {
+            "description": "Server/application name",
+            "type": "string"
+          },
+          "version": {
+            "description": "Application version",
+            "type": "string"
+          },
+          "uptime": {
+            "description": "Server uptime in seconds",
+            "type": "number"
+          },
+          "memory": {
+            "description": "Memory usage statistics",
+            "type": "object",
+            "properties": {
+              "rss": {
+                "description": "Resident Set Size - total memory allocated",
+                "type": "number"
+              },
+              "heapTotal": {
+                "description": "Total heap memory allocated",
+                "type": "number"
+              },
+              "heapUsed": {
+                "description": "Heap memory currently used",
+                "type": "number"
+              },
+              "external": {
+                "description": "Memory used by C++ objects bound to JavaScript",
+                "type": "number"
+              },
+              "arrayBuffers": {
+                "description": "Memory allocated for ArrayBuffers and SharedArrayBuffers",
+                "type": "number"
+              }
+            },
+            "required": [
+              "rss",
+              "heapTotal",
+              "heapUsed",
+              "external",
+              "arrayBuffers"
+            ]
+          },
+          "environment": {
+            "description": "Current environment (development, production, etc.)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp",
+          "server",
+          "version",
+          "uptime",
+          "memory",
+          "environment"
         ]
       }
     }

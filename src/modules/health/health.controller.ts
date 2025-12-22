@@ -4,6 +4,8 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ROUTES } from '../../config/routes.config';
 
 import { HealthResponseDto } from './dto/health-response.dto';
+import { SimpleHealthResponseDto } from './dto/simple-health-response.dto';
+import { HealthService } from './health.service';
 
 /**
  * Controller for Health Check API endpoints.
@@ -12,21 +14,35 @@ import { HealthResponseDto } from './dto/health-response.dto';
 @ApiTags('health')
 @Controller(ROUTES.HEALTH)
 export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
   /**
-   * Returns the health status of the application.
-   * @returns Health response DTO with status and version information
+   * Returns the basic health status of the application.
+   * @returns Simple health response DTO with status and version information
    */
   @Get('ping')
-  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiOperation({ summary: 'Basic health check endpoint' })
   @ApiResponse({
     status: 200,
-    description: 'Health status',
+    description: 'Basic health status',
+    type: SimpleHealthResponseDto,
+  })
+  ping(): SimpleHealthResponseDto {
+    return this.healthService.getSimpleHealthStatus();
+  }
+
+  /**
+   * Returns comprehensive health status of the application.
+   * @returns Detailed health response DTO with status, server info, and system metrics
+   */
+  @Get('status')
+  @ApiOperation({ summary: 'Comprehensive health status endpoint' })
+  @ApiResponse({
+    status: 200,
+    description: 'Comprehensive health status with system metrics',
     type: HealthResponseDto,
   })
-  ping(): HealthResponseDto {
-    return {
-      status: 'ok',
-      version: process.env.npm_package_version ?? '1.0.0',
-    };
+  status(): HealthResponseDto {
+    return this.healthService.getHealthStatus();
   }
 }

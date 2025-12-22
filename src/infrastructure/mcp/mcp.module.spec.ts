@@ -2,7 +2,9 @@ import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
+import appConfig from '../../config/app.config';
 import mcpConfig from '../../config/mcp.config';
+import { HealthModule } from '../../modules/health/health.module';
 
 import { McpServerService } from './mcp-server.service';
 import { McpModule } from './mcp.module';
@@ -12,7 +14,14 @@ describe('McpModule', () => {
 
   beforeEach(async () => {
     module = await Test.createTestingModule({
-      imports: [McpModule, ConfigModule.forFeature(mcpConfig)],
+      imports: [
+        ConfigModule.forRoot({
+          isGlobal: true,
+          load: [mcpConfig, appConfig],
+        }),
+        McpModule, 
+        HealthModule,
+      ],
     })
       .overrideProvider(ContextLoggerService)
       .useValue({

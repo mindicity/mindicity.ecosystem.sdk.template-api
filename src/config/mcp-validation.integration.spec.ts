@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContextLoggerService } from '../common/services/context-logger.service';
 import { McpServerService } from '../infrastructure/mcp/mcp-server.service';
 import { TransportFactory } from '../infrastructure/mcp/transports/transport-factory';
+import { HealthService } from '../modules/health/health.service';
 
 import mcpConfig from './mcp.config';
 
@@ -16,6 +17,28 @@ describe('MCP Configuration Validation Integration', () => {
     trace: jest.fn(),
     error: jest.fn(),
     warn: jest.fn(),
+  };
+
+  const mockHealthService = {
+    getHealthStatus: jest.fn().mockReturnValue({
+      status: 'healthy',
+      timestamp: '2025-12-22T14:00:00.000Z',
+      server: 'test-server',
+      version: '1.0.0',
+      uptime: 123.456,
+      memory: {
+        rss: 124878848,
+        heapTotal: 45776896,
+        heapUsed: 42331056,
+        external: 2981905,
+        arrayBuffers: 8466399,
+      },
+      environment: 'test',
+    }),
+    getSimpleHealthStatus: jest.fn().mockReturnValue({
+      status: 'ok',
+      version: '1.0.0',
+    }),
   };
 
   beforeEach(() => {
@@ -294,6 +317,7 @@ describe('MCP Configuration Validation Integration', () => {
           McpServerService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: ContextLoggerService, useValue: mockLoggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -341,6 +365,7 @@ describe('MCP Configuration Validation Integration', () => {
           McpServerService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: ContextLoggerService, useValue: mockLoggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 
@@ -381,6 +406,7 @@ describe('MCP Configuration Validation Integration', () => {
           McpServerService,
           { provide: ConfigService, useValue: mockConfigService },
           { provide: ContextLoggerService, useValue: mockLoggerService },
+          { provide: HealthService, useValue: mockHealthService },
         ],
       }).compile();
 

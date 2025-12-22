@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
+import { HealthModule } from '../../modules/health/health.module';
 import mcpConfig from '../../config/mcp.config';
 
 import { McpServerService } from './mcp-server.service';
@@ -30,6 +31,7 @@ import { McpServerService } from './mcp-server.service';
 @Module({
   imports: [
     ConfigModule.forFeature(mcpConfig),
+    HealthModule,
   ],
   providers: [
     McpServerService,

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * Simple script to list available MCP tools
+ * Simple script to list available MCP tools and resources
  * 
- * Usage: node scripts/list-mcp-tools.js [transport] [port]
+ * Usage: node scripts/mcp/list-mcp-tools.js [transport] [port]
  * 
  * Examples:
- *   node scripts/list-mcp-tools.js http 3235
- *   node scripts/list-mcp-tools.js sse 3236
+ *   node scripts/mcp/list-mcp-tools.js http 3235
+ *   node scripts/mcp/list-mcp-tools.js sse 3236
  */
 
 const { execSync } = require('child_process');
@@ -15,7 +15,7 @@ const { execSync } = require('child_process');
 const transport = process.argv[2] || 'sse';
 const port = process.argv[3] || '3235';
 
-console.log(`🔍 Listing MCP tools for ${transport.toUpperCase()} transport on port ${port}...\n`);
+console.log(`🔍 Listing MCP tools and resources for ${transport.toUpperCase()} transport on port ${port}...\n`);
 
 try {
   if (transport === 'http' || transport === 'sse') {
@@ -35,6 +35,23 @@ try {
       });
     }
 
+    // Test resources/list
+    console.log('\n\n📚 Available Resources:');
+    const resourcesResult = execSync(
+      `curl -s -X POST http://localhost:${port}/mcp -H "Content-Type: application/json" -d "{\\"jsonrpc\\": \\"2.0\\", \\"id\\": 2, \\"method\\": \\"resources/list\\", \\"params\\": {}}"`,
+      { encoding: 'utf8' }
+    );
+    
+    const resourcesResponse = JSON.parse(resourcesResult);
+    if (resourcesResponse.result && resourcesResponse.result.resources) {
+      resourcesResponse.result.resources.forEach((resource, index) => {
+        console.log(`\n${index + 1}. ${resource.name}`);
+        console.log(`   URI: ${resource.uri}`);
+        console.log(`   Description: ${resource.description}`);
+        console.log(`   MIME Type: ${resource.mimeType}`);
+      });
+    }
+
     // Test info endpoint for SSE
     if (transport === 'sse') {
       console.log('\n\nℹ️  Server Info:');
@@ -50,13 +67,20 @@ try {
       console.log(`     - Events: http://localhost:${port}${info.endpoints.events}`);
       console.log(`     - Requests: http://localhost:${port}${info.endpoints.requests}`);
       console.log(`     - Info: http://localhost:${port}${info.endpoints.info}`);
+      
+      if (info.availableResources) {
+        console.log(`   Available Resources: ${info.availableResources.length}`);
+        info.availableResources.forEach((resource, index) => {
+          console.log(`     ${index + 1}. ${resource.name} (${resource.uri})`);
+        });
+      }
     }
 
-    console.log('\n✅ MCP server is working correctly!');
+    console.log('\n✅ MCP server is working correctly with tools and resources!');
   } else if (transport === 'stdio') {
     console.log('ℹ️  STDIO transport uses standard input/output for communication.');
     console.log('   It requires an MCP client to test interactively.');
-    console.log('   The tools are handled by the McpServerService automatically.');
+    console.log('   The tools and resources are handled by the McpServerService automatically.');
   } else {
     console.log(`❌ Unknown transport: ${transport}`);
     console.log('   Supported transports: http, sse, stdio');

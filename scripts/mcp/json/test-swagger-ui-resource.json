@@ -1,8 +1,8 @@
 {
   "jsonrpc": "2.0",
-  "id": 2,
+  "id": 3,
   "method": "resources/read",
   "params": {
-    "uri": "swagger://api-docs/project/swagger/specs"
+    "uri": "swagger://api-docs/project/swagger/ui"
   }
 }

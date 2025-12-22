@@ -2,6 +2,7 @@ import { McpTransport, TransportConfig } from './base-transport';
 import { HttpTransport } from './http-transport';
 import { SseTransport } from './sse-transport';
 import { StdioTransport } from './stdio-transport';
+import { OptionalTransportDependencies, validateTransportDependencies } from './transport-dependencies';
 
 /**
  * Factory class for creating MCP transport instances.
@@ -11,11 +12,31 @@ export class TransportFactory {
   /**
    * Create a transport instance based on the provided configuration.
    * 
+   * **SCALABILITY DESIGN:**
+   * This method uses a dependencies container pattern that scales seamlessly.
+   * Whether you have 1 service or 10 services, the method signature stays the same.
+   * Just extend the TransportDependencies interface to add new services.
+   * 
    * @param config - Transport configuration
+   * @param dependencies - Container with all services needed by transports
    * @returns Transport instance
-   * @throws Error if transport type is not supported
+   * @throws Error if transport type is not supported or required dependencies are missing
+   * 
+   * @example
+   * ```typescript
+   * // Works with 1 service
+   * const deps1 = { healthService };
+   * TransportFactory.createTransport(config, deps1);
+   * 
+   * // Works with many services - same signature!
+   * const deps2 = { healthService, userService, notificationService, analyticsService };
+   * TransportFactory.createTransport(config, deps2);
+   * ```
    */
-  static createTransport(config: TransportConfig): McpTransport {
+  static createTransport(config: TransportConfig, dependencies?: OptionalTransportDependencies): McpTransport {
+    // Validate dependencies for the specific transport type
+    validateTransportDependencies(config.transport, dependencies);
+
     switch (config.transport) {
       case 'stdio':
         return new StdioTransport(config);
@@ -24,13 +45,15 @@ export class TransportFactory {
         if (!config.port || !config.host) {
           throw new Error('HTTP transport requires port and host configuration');
         }
-        return new HttpTransport(config);
+        // Dependencies already validated by validateTransportDependencies
+        return new HttpTransport(config, dependencies!);
       
       case 'sse':
         if (!config.port || !config.host) {
           throw new Error('SSE transport requires port and host configuration');
         }
-        return new SseTransport(config);
+        // Dependencies already validated by validateTransportDependencies
+        return new SseTransport(config, dependencies!);
       
       default:
         throw new Error(`Unsupported transport type: ${config.transport}`);

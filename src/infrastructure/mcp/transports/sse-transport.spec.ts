@@ -1,7 +1,9 @@
 import { Server as HttpServer } from 'http';
 
+import { HealthService } from '../../../modules/health/health.service';
 import { TransportConfig } from './base-transport';
 import { SseTransport } from './sse-transport';
+import { createTransportDependencies } from './transport-dependencies';
 
 // Mock the HTTP server
 jest.mock('http', () => ({
@@ -12,6 +14,7 @@ describe('SseTransport', () => {
   let transport: SseTransport;
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
+  let mockHealthService: jest.Mocked<HealthService>;
   let config: TransportConfig;
 
   beforeEach(() => {
@@ -22,6 +25,28 @@ describe('SseTransport', () => {
       serverName: 'test-server',
       serverVersion: '1.0.0',
     };
+
+    mockHealthService = {
+      getHealthStatus: jest.fn().mockReturnValue({
+        status: 'healthy',
+        timestamp: '2025-12-22T14:00:00.000Z',
+        server: 'test-server',
+        version: '1.0.0',
+        uptime: 123.456,
+        memory: {
+          rss: 124878848,
+          heapTotal: 45776896,
+          heapUsed: 42331056,
+          external: 2981905,
+          arrayBuffers: 8466399,
+        },
+        environment: 'test',
+      }),
+      getSimpleHealthStatus: jest.fn().mockReturnValue({
+        status: 'ok',
+        version: '1.0.0',
+      }),
+    } as any;
 
     mockServer = {
       listen: jest.fn().mockImplementation((_port: unknown, _host: unknown, callback?: () => void) => {
@@ -42,7 +67,10 @@ describe('SseTransport', () => {
     const { createServer } = require('http');
     createServer.mockReturnValue(mockServer);
 
-    transport = new SseTransport(config);
+    const dependencies = createTransportDependencies({
+      healthService: mockHealthService,
+    });
+    transport = new SseTransport(config, dependencies);
   });
 
   afterEach(() => {
@@ -339,7 +367,7 @@ describe('SseTransport', () => {
         id: 2,
         error: {
           code: -32601,
-          message: 'Method not implemented in SSE transport',
+          message: 'Method not implemented in SSE transport: unknown',
         },
       });
     });

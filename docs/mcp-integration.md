@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Mindicity API Template includes a built-in **Model Context Protocol (MCP) server** that enables AI agents to interact with your API through structured tools and resources. This integration allows AI assistants like Kiro to query API information, check health status, and list available endpoints.
+The Mindicity API Template includes a built-in **Model Context Protocol (MCP) server** that enables AI agents to interact with your API through structured tools and resources. This integration allows AI assistants like Kiro to query API information, check health status, access Swagger documentation, and list available endpoints.
 
 ## Architecture
 
@@ -259,6 +259,60 @@ Lists all available API endpoints with methods and descriptions.
   }
 ]
 ```
+
+## Built-in Resources
+
+The MCP server provides access to API documentation through resources:
+
+### 1. API Swagger Specification
+
+**URI:** `swagger://api-docs/project/swagger/specs`
+**MIME Type:** `application/json`
+**Description:** Complete OpenAPI/Swagger specification for all API endpoints
+
+**Content:** Full OpenAPI 3.0 specification including:
+- API metadata (title, version, description)
+- Server information
+- All endpoint definitions
+- Request/response schemas
+- Authentication requirements
+
+### 2. API Swagger UI
+
+**URI:** `swagger://api-docs/project/swagger/ui`
+**MIME Type:** `text/html`
+**Description:** Interactive Swagger UI information and access instructions
+
+**Content:** Information about accessing the Swagger UI including:
+- Direct URL to interactive documentation
+- Usage instructions for testing endpoints
+- Feature overview (explore, test, view schemas)
+
+### Using Resources
+
+AI agents can access resources using standard MCP protocol:
+
+```json
+// List all available resources
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "resources/list",
+  "params": {}
+}
+
+// Read Swagger specification
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "resources/read",
+  "params": {
+    "uri": "swagger://api-docs/project/swagger/specs"
+  }
+}
+```
+
+For detailed resource documentation, see [MCP Resources Guide](./mcp-resources.md).
 
 ## Connecting AI Agents
 

@@ -1,8 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import * as fc from 'fast-check';
 
 import { HealthResponseDto } from './dto/health-response.dto';
+import { SimpleHealthResponseDto } from './dto/simple-health-response.dto';
 import { HealthController } from './health.controller';
+import { HealthService } from './health.service';
+import { ContextLoggerService } from '../../common/services/context-logger.service';
 
 /**
  * **Feature: nestjs-hello-api, Property 7: Health response structure**
@@ -10,13 +14,27 @@ import { HealthController } from './health.controller';
  */
 describe('Health Controller Property Tests', () => {
   let controller: HealthController;
+  let healthService: HealthService;
+
+  const mockHealthService = {
+    getSimpleHealthStatus: jest.fn(),
+    getHealthStatus: jest.fn(),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
+      providers: [
+        { provide: HealthService, useValue: mockHealthService },
+      ],
     }).compile();
 
     controller = module.get<HealthController>(HealthController);
+    healthService = module.get<HealthService>(HealthService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -31,52 +49,39 @@ describe('Health Controller Property Tests', () => {
   it('should always include version information in health response', () => {
     fc.assert(
       fc.property(
-        // Generate various environment scenarios for npm_package_version
+        // Generate various version scenarios
         fc.oneof(
           fc.constant('1.0.0'), // Default version
           fc.constant('2.1.3'), // Another valid version
           fc.constant('0.0.1'), // Minimal version
-          fc.constant(undefined), // No version set
         ),
         (mockVersion) => {
-          // Mock process.env.npm_package_version
-          const originalVersion = process.env.npm_package_version;
-          if (mockVersion !== undefined) {
-            process.env.npm_package_version = mockVersion;
-          } else {
-            delete process.env.npm_package_version;
-          }
+          // Mock the health service response
+          mockHealthService.getSimpleHealthStatus.mockReturnValue({
+            status: 'ok',
+            version: mockVersion,
+          });
 
-          try {
-            // Call the health endpoint
-            const response: HealthResponseDto = controller.ping();
+          // Call the health endpoint
+          const response: SimpleHealthResponseDto = controller.ping();
 
-            // Verify the response structure
-            expect(response).toBeDefined();
-            expect(response).toHaveProperty('status');
-            expect(response).toHaveProperty('version');
+          // Verify the response structure
+          expect(response).toBeDefined();
+          expect(response).toHaveProperty('status');
+          expect(response).toHaveProperty('version');
 
-            // Verify status is always 'ok'
-            expect(response.status).toBe('ok');
+          // Verify status is always 'ok'
+          expect(response.status).toBe('ok');
 
-            // Verify version is always present and is a non-empty string
-            expect(response.version).toBeDefined();
-            expect(typeof response.version).toBe('string');
-            expect(response.version.length).toBeGreaterThan(0);
+          // Verify version is always present and is a non-empty string
+          expect(response.version).toBeDefined();
+          expect(typeof response.version).toBe('string');
+          expect(response.version.length).toBeGreaterThan(0);
 
-            // Verify version matches expected value
-            const expectedVersion = mockVersion ?? '1.0.0';
-            expect(response.version).toBe(expectedVersion);
+          // Verify version matches expected value
+          expect(response.version).toBe(mockVersion);
 
-            return true;
-          } finally {
-            // Restore original environment
-            if (originalVersion !== undefined) {
-              process.env.npm_package_version = originalVersion;
-            } else {
-              delete process.env.npm_package_version;
-            }
-          }
+          return true;
         },
       ),
       { numRuns: 5 },
@@ -88,22 +93,16 @@ describe('Health Controller Property Tests', () => {
    * *For any* request to the health endpoint, the API_System should not generate standard request logs to reduce noise
    * **Validates: Requirements 3.5**
    */
-  it('should use default version when npm_package_version is undefined', () => {
-    const originalVersion = process.env.npm_package_version;
+  it('should use default version when service returns default', () => {
+    mockHealthService.getSimpleHealthStatus.mockReturnValue({
+      status: 'ok',
+      version: '1.0.0',
+    });
     
-    try {
-      // Explicitly delete the environment variable
-      delete process.env.npm_package_version;
-      
-      const response = controller.ping();
-      
-      expect(response.version).toBe('1.0.0');
-    } finally {
-      // Restore original environment
-      if (originalVersion !== undefined) {
-        process.env.npm_package_version = originalVersion;
-      }
-    }
+    const response = controller.ping();
+    
+    expect(response.version).toBe('1.0.0');
+    expect(mockHealthService.getSimpleHealthStatus).toHaveBeenCalled();
   });
 
   it('should not generate standard request logs for health check requests', () => {
@@ -119,59 +118,68 @@ describe('Health Controller Property Tests', () => {
             fc.constant('1.0.0'),
             fc.constant('2.1.3'),
             fc.constant('0.0.1'),
-            fc.constant(undefined),
           ),
         }),
         ({ mockVersion }) => {
-          // Mock process.env.npm_package_version
-          const originalVersion = process.env.npm_package_version;
-          if (mockVersion !== undefined) {
-            process.env.npm_package_version = mockVersion;
-          } else {
-            delete process.env.npm_package_version;
-          }
+          // Mock the health service response
+          mockHealthService.getSimpleHealthStatus.mockReturnValue({
+            status: 'ok',
+            version: mockVersion,
+          });
 
-          try {
-            // Call the health endpoint directly (simulating controller behavior)
-            const response: HealthResponseDto = controller.ping();
+          // Call the health endpoint directly (simulating controller behavior)
+          const response: SimpleHealthResponseDto = controller.ping();
 
-            // Verify the response is correct
-            expect(response).toBeDefined();
-            expect(response.status).toBe('ok');
-            expect(response.version).toBeDefined();
+          // Verify the response is correct
+          expect(response).toBeDefined();
+          expect(response.status).toBe('ok');
+          expect(response.version).toBeDefined();
 
-            // The key assertion: Health controller should not perform any explicit logging
-            // This verifies that the controller itself doesn't log request/response details
-            // The HTTP-level logging exclusion should be handled by Pino HTTP configuration
+          // The key assertion: Health controller should not perform any explicit logging
+          // This verifies that the controller itself doesn't log request/response details
+          // The HTTP-level logging exclusion should be handled by Pino HTTP configuration
 
-            // Since the controller doesn't have a logger injected (as per current implementation),
-            // we verify that it operates without generating logs at the controller level
-            // This is correct behavior - health checks should be silent at the application level
+          // Verify that the controller method executes without side effects (no logging)
+          // The response should be generated without any logging calls
+          expect(response.status).toBe('ok');
+          expect(typeof response.version).toBe('string');
+          expect(response.version.length).toBeGreaterThan(0);
 
-            // Verify that the controller method executes without side effects (no logging)
-            // The response should be generated without any logging calls
-            expect(response.status).toBe('ok');
-            expect(typeof response.version).toBe('string');
-            expect(response.version.length).toBeGreaterThan(0);
+          // Verify version matches expected value
+          expect(response.version).toBe(mockVersion);
 
-            // Verify version matches expected value
-            const expectedVersion = mockVersion ?? '1.0.0';
-            expect(response.version).toBe(expectedVersion);
-
-            // The controller should not perform any explicit request/response logging
-            // This is the correct behavior for health checks to reduce noise
-            return true;
-          } finally {
-            // Restore original environment
-            if (originalVersion !== undefined) {
-              process.env.npm_package_version = originalVersion;
-            } else {
-              delete process.env.npm_package_version;
-            }
-          }
+          // The controller should not perform any explicit request/response logging
+          // This is the correct behavior for health checks to reduce noise
+          return true;
         },
       ),
       { numRuns: 5 },
     );
+  });
+
+  it('should call health service for comprehensive status', () => {
+    // Mock comprehensive health status
+    const mockHealthStatus = {
+      status: 'healthy',
+      timestamp: '2025-12-22T14:00:00.000Z',
+      server: 'test-api',
+      version: '1.0.0',
+      uptime: 123.456,
+      memory: {
+        rss: 124878848,
+        heapTotal: 45776896,
+        heapUsed: 42331056,
+        external: 2981905,
+        arrayBuffers: 8466399,
+      },
+      environment: 'test',
+    };
+
+    mockHealthService.getHealthStatus.mockReturnValue(mockHealthStatus);
+
+    const response: HealthResponseDto = controller.status();
+
+    expect(response).toEqual(mockHealthStatus);
+    expect(mockHealthService.getHealthStatus).toHaveBeenCalled();
   });
 });

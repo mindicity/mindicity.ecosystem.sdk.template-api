@@ -4,6 +4,7 @@ import { parse } from 'url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 import { McpTransport, TransportConfig } from './base-transport';
+import { OptionalTransportDependencies } from './transport-dependencies';
 
 /**
  * Server-Sent Events transport implementation for MCP server.
@@ -14,7 +15,15 @@ export class SseTransport implements McpTransport {
   private mcpServer: Server | null = null;
   private clients: Set<ServerResponse> = new Set();
 
-  constructor(private readonly config: TransportConfig) {}
+  constructor(
+    private readonly config: TransportConfig,
+    private readonly dependencies: OptionalTransportDependencies,
+  ) {
+    // Validate that required dependencies are present
+    if (!dependencies.healthService) {
+      throw new Error('SseTransport requires HealthService in dependencies');
+    }
+  }
 
   /**
    * Connect the SSE transport to the MCP server.
@@ -199,11 +208,24 @@ export class SseTransport implements McpTransport {
       activeConnections: this.clients.size,
       capabilities: {
         tools: {},
+        resources: {},
       },
       availableTools: [
         {
           name: 'get_api_health',
           description: 'Check the health status of the API server',
+        },
+      ],
+      availableResources: [
+        {
+          uri: 'swagger://docs/project/swagger/specs',
+          name: 'API Swagger Specification',
+          description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+        },
+        {
+          uri: 'swagger://docs/project/swagger/ui',
+          name: 'API Swagger UI',
+          description: 'Interactive Swagger UI for exploring and testing API endpoints',
         },
       ],
     };
@@ -227,6 +249,7 @@ export class SseTransport implements McpTransport {
           protocolVersion: '2024-11-05',
           capabilities: {
             tools: {},
+            resources: {},
           },
           serverInfo: {
             name: this.config.serverName,
@@ -259,6 +282,8 @@ export class SseTransport implements McpTransport {
       const toolName = params?.name;
       
       if (toolName === 'get_api_health') {
+        const healthData = this.dependencies.healthService!.getHealthStatus();
+
         return {
           jsonrpc: '2.0',
           id: req.id,
@@ -266,15 +291,7 @@ export class SseTransport implements McpTransport {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify({
-                  status: 'healthy',
-                  timestamp: new Date().toISOString(),
-                  server: this.config.serverName,
-                  version: this.config.serverVersion,
-                  uptime: process.uptime(),
-                  memory: process.memoryUsage(),
-                  environment: process.env.NODE_ENV || 'development',
-                }, null, 2),
+                text: JSON.stringify(healthData, null, 2),
               },
             ],
           },
@@ -286,6 +303,124 @@ export class SseTransport implements McpTransport {
           error: {
             code: -32601,
             message: `Unknown tool: ${toolName}`,
+          },
+        };
+      }
+    } else if (req.method === 'resources/list') {
+      // Handle resources/list request
+      return {
+        jsonrpc: '2.0',
+        id: req.id,
+        result: {
+          resources: [
+            {
+              uri: 'swagger://docs/project/swagger/specs',
+              name: 'API Swagger Specification',
+              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+              mimeType: 'application/json',
+            },
+            {
+              uri: 'swagger://docs/project/swagger/ui',
+              name: 'API Swagger UI',
+              description: 'Interactive Swagger UI for exploring and testing API endpoints',
+              mimeType: 'text/html',
+            },
+          ],
+        },
+      };
+    } else if (req.method === 'resources/read') {
+      // Handle resources/read request
+      const params = req.params as { uri?: string };
+      const uri = params?.uri;
+      
+      if (uri?.startsWith('swagger://docs')) {
+        if (uri.includes('/swagger/specs')) {
+          // Return Swagger JSON specification placeholder
+          const swaggerSpec = {
+            openapi: '3.0.0',
+            info: {
+              title: this.config.serverName,
+              version: this.config.serverVersion,
+              description: 'API documentation available via Swagger UI',
+            },
+            servers: [
+              {
+                url: 'http://localhost:3232/mcapi',
+                description: 'API Server',
+              },
+            ],
+            paths: {
+              '/health/project/ping': {
+                get: {
+                  tags: ['health'],
+                  summary: 'Health check endpoint',
+                  responses: {
+                    '200': {
+                      description: 'API is healthy',
+                      content: {
+                        'application/json': {
+                          schema: {
+                            type: 'object',
+                            properties: {
+                              status: { type: 'string', example: 'ok' },
+                              timestamp: { type: 'string', format: 'date-time' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            note: 'Complete API documentation is available at: http://localhost:3232/mcapi/docs/project/swagger/specs',
+          };
+
+          return {
+            jsonrpc: '2.0',
+            id: req.id,
+            result: {
+              contents: [
+                {
+                  uri,
+                  mimeType: 'application/json',
+                  text: JSON.stringify(swaggerSpec, null, 2),
+                },
+              ],
+            },
+          };
+        } else if (uri.includes('/swagger/ui')) {
+          // Return Swagger UI information
+          return {
+            jsonrpc: '2.0',
+            id: req.id,
+            result: {
+              contents: [
+                {
+                  uri,
+                  mimeType: 'text/plain',
+                  text: `Swagger UI is available at: http://localhost:3232/mcapi/docs/project/swagger/ui\n\nThis interactive documentation allows you to:\n- Explore all API endpoints\n- Test endpoints directly from the browser\n- View request/response schemas\n- Understand authentication requirements\n\nTo access the Swagger UI, open the URL above in your web browser.`,
+                },
+              ],
+            },
+          };
+        } else {
+          return {
+            jsonrpc: '2.0',
+            id: req.id,
+            error: {
+              code: -32601,
+              message: `Unknown resource URI: ${uri}`,
+            },
+          };
+        }
+      } else {
+        return {
+          jsonrpc: '2.0',
+          id: req.id,
+          error: {
+            code: -32601,
+            message: `Unknown resource URI: ${uri}`,
           },
         };
       }
