@@ -168,6 +168,22 @@ export class HttpTransport implements McpTransport {
       }
       
       // Fallback: generate a minimal spec if file doesn't exist
+      const apiPrefix = this.dependencies.appConfig?.apiPrefix ?? '/mcapi';
+      const apiScopePrefix = this.dependencies.appConfig?.apiScopePrefix ?? '';
+      const swaggerHostname = this.dependencies.appConfig?.swaggerHostname ?? 'http://localhost:3232';
+      
+      // Build the scope path correctly:
+      // - If apiScopePrefix is empty: use empty string (no scope path)
+      // - If apiScopePrefix starts with '/': remove the leading slash to avoid double slashes
+      let scopePath = '';
+      if (apiScopePrefix && apiScopePrefix.trim() !== '') {
+        scopePath = apiScopePrefix.startsWith('/') ? apiScopePrefix.substring(1) : apiScopePrefix;
+      }
+      
+      const swaggerUiUrl = scopePath 
+        ? `${swaggerHostname}${apiPrefix}/docs/${scopePath}/swagger/ui`
+        : `${swaggerHostname}${apiPrefix}/docs/swagger/ui`;
+      
       const minimalSpec = {
         openapi: '3.0.0',
         info: {
@@ -177,13 +193,13 @@ export class HttpTransport implements McpTransport {
         },
         servers: [
           {
-            url: 'http://localhost:3232/mcapi',
+            url: `${swaggerHostname}${apiPrefix}`,
             description: 'API Server',
           },
         ],
         paths: {},
         components: {},
-        note: 'Complete API documentation with all endpoints is available at: http://localhost:3232/mcapi/docs/project/swagger/ui',
+        note: `Complete API documentation with all endpoints is available at: ${swaggerUiUrl}`,
       };
 
       transport.send({
@@ -330,13 +346,25 @@ export class HttpTransport implements McpTransport {
    * @private
    */
   private handleResourcesList(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    const apiScopePrefix = this.dependencies.appConfig?.apiScopePrefix ?? '';
+    
+    // Build the URI path correctly:
+    // - If apiScopePrefix is empty or undefined: swagger://docs/swagger/specs
+    // - If apiScopePrefix starts with '/': remove the leading slash to avoid double slashes
+    let uriPath = 'swagger://docs';
+    if (apiScopePrefix && apiScopePrefix.trim() !== '') {
+      const cleanPrefix = apiScopePrefix.startsWith('/') ? apiScopePrefix.substring(1) : apiScopePrefix;
+      uriPath += `/${cleanPrefix}`;
+    }
+    uriPath += '/swagger/specs';
+    
     transport.send({
       jsonrpc: '2.0',
       id: req.id,
       result: {
         resources: [
           {
-            uri: 'swagger://docs/project/swagger/specs',
+            uri: uriPath,
             name: 'API Swagger Specification',
             description: 'Complete OpenAPI/Swagger specification for the API endpoints',
             mimeType: 'application/json',

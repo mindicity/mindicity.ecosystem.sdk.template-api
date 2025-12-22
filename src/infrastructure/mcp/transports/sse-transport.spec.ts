@@ -49,6 +49,20 @@ describe('SseTransport', () => {
       }),
     } as any;
 
+    const mockAppConfig = {
+      apiPrefix: '/mcapi',
+      apiScopePrefix: '/project',
+      swaggerHostname: 'http://localhost:3232',
+      port: 3232,
+    };
+
+    const dependencies = createTransportDependencies({
+      healthService: mockHealthService,
+      appConfig: mockAppConfig,
+    });
+
+    transport = new SseTransport(config, dependencies);
+
     mockServer = {
       listen: jest.fn().mockImplementation((_port: unknown, _host: unknown, callback?: () => void) => {
         if (callback) callback();
@@ -67,11 +81,6 @@ describe('SseTransport', () => {
 
     const { createServer } = require('http');
     createServer.mockReturnValue(mockServer);
-
-    const dependencies = createTransportDependencies({
-      healthService: mockHealthService,
-    });
-    transport = new SseTransport(config, dependencies);
   });
 
   afterEach(() => {

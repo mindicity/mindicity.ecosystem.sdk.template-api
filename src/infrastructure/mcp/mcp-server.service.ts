@@ -136,8 +136,10 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   private async startMcpServer(): Promise<void> {
     // Create transport dependencies using the scalable pattern
     // This pattern scales seamlessly - add more services without changing the factory signature
+    const appConfig = this.configService.get('app');
     const dependencies = createTransportDependencies({
       healthService: this.healthService,
+      appConfig: appConfig,
       // Future services can be added here without breaking existing code:
       // userService: this.userService,
       // notificationService: this.notificationService,

@@ -49,6 +49,20 @@ describe('HttpTransport', () => {
       }),
     } as any;
 
+    const mockAppConfig = {
+      apiPrefix: '/mcapi',
+      apiScopePrefix: '/project',
+      swaggerHostname: 'http://localhost:3232',
+      port: 3232,
+    };
+
+    const dependencies = createTransportDependencies({
+      healthService: mockHealthService,
+      appConfig: mockAppConfig,
+    });
+
+    transport = new HttpTransport(config, dependencies);
+
     mockServer = {
       listen: jest.fn().mockImplementation((port: number, host: string, callback?: () => void) => {
         if (callback) callback();
@@ -67,11 +81,6 @@ describe('HttpTransport', () => {
 
     const { createServer } = require('http');
     createServer.mockReturnValue(mockServer);
-
-    const dependencies = createTransportDependencies({
-      healthService: mockHealthService,
-    });
-    transport = new HttpTransport(config, dependencies);
   });
 
   afterEach(() => {
@@ -418,6 +427,82 @@ describe('HttpTransport', () => {
           resources: [
             {
               uri: 'swagger://docs/project/swagger/specs',
+              name: 'API Swagger Specification',
+              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+              mimeType: 'application/json',
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle resources/list method with custom apiScopePrefix', async () => {
+      // Create transport with custom apiScopePrefix
+      const customAppConfig = {
+        apiPrefix: '/mcapi',
+        apiScopePrefix: '/custom-api',
+        swaggerHostname: 'http://localhost:3232',
+        port: 3232,
+      };
+      
+      const customDependencies = createTransportDependencies({
+        healthService: mockHealthService,
+        appConfig: customAppConfig,
+      });
+      
+      const customTransport = new HttpTransport(config, customDependencies);
+      (customTransport as any).mcpServer = mockMcpServer;
+
+      const request = { method: 'resources/list', id: 6 };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      await (customTransport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 6,
+        result: {
+          resources: [
+            {
+              uri: 'swagger://docs/custom-api/swagger/specs',
+              name: 'API Swagger Specification',
+              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
+              mimeType: 'application/json',
+            },
+          ],
+        },
+      });
+    });
+
+    it('should handle resources/list method with empty apiScopePrefix', async () => {
+      // Create transport with empty apiScopePrefix
+      const emptyAppConfig = {
+        apiPrefix: '/mcapi',
+        apiScopePrefix: '',
+        swaggerHostname: 'http://localhost:3232',
+        port: 3232,
+      };
+      
+      const emptyDependencies = createTransportDependencies({
+        healthService: mockHealthService,
+        appConfig: emptyAppConfig,
+      });
+      
+      const emptyTransport = new HttpTransport(config, emptyDependencies);
+      (emptyTransport as any).mcpServer = mockMcpServer;
+
+      const request = { method: 'resources/list', id: 6 };
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      await (emptyTransport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 6,
+        result: {
+          resources: [
+            {
+              uri: 'swagger://docs/swagger/specs',
               name: 'API Swagger Specification',
               description: 'Complete OpenAPI/Swagger specification for the API endpoints',
               mimeType: 'application/json',

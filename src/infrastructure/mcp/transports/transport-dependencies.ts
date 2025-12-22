@@ -1,6 +1,17 @@
 import { HealthService } from '../../../modules/health/health.service';
 
 /**
+ * App configuration interface for MCP transports.
+ * Contains configuration values needed by transports.
+ */
+export interface AppConfig {
+  apiPrefix?: string;
+  apiScopePrefix?: string;
+  swaggerHostname?: string;
+  port?: number;
+}
+
+/**
  * Dependencies container for MCP transports.
  * 
  * This interface defines all services that MCP transports might need.
@@ -38,6 +49,12 @@ export interface TransportDependencies {
    * Required by HTTP and SSE transports for get_api_health tool.
    */
   healthService: HealthService;
+
+  /**
+   * App configuration for API endpoints and Swagger URLs.
+   * Required by HTTP and SSE transports for resource URIs.
+   */
+  appConfig?: AppConfig;
 
   // Future services can be added here as needed:
   // The factory signature never changes - just extend this interface!

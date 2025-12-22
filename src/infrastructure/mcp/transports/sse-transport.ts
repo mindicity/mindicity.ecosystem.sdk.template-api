@@ -242,7 +242,15 @@ export class SseTransport implements McpTransport {
       ],
       availableResources: [
         {
-          uri: 'swagger://docs/project/swagger/specs',
+          uri: (() => {
+            const apiScopePrefix = this.dependencies.appConfig?.apiScopePrefix ?? '';
+            let uriPath = 'swagger://docs';
+            if (apiScopePrefix && apiScopePrefix.trim() !== '') {
+              const cleanPrefix = apiScopePrefix.startsWith('/') ? apiScopePrefix.substring(1) : apiScopePrefix;
+              uriPath += `/${cleanPrefix}`;
+            }
+            return `${uriPath}/swagger/specs`;
+          })(),
           name: 'API Swagger Specification',
           description: 'Complete OpenAPI/Swagger specification for the API endpoints',
         },
