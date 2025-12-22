@@ -154,8 +154,6 @@ export class HttpTransport implements McpTransport {
         const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
         
         transport.send({
-          jsonrpc: '2.0',
-          id: undefined, // Will be set by caller
           result: {
             contents: [
               {
@@ -189,8 +187,6 @@ export class HttpTransport implements McpTransport {
       };
 
       transport.send({
-        jsonrpc: '2.0',
-        id: undefined, // Will be set by caller
         result: {
           contents: [
             {
@@ -203,8 +199,6 @@ export class HttpTransport implements McpTransport {
       });
     } catch (error) {
       transport.send({
-        jsonrpc: '2.0',
-        id: undefined, // Will be set by caller
         error: {
           code: -32603,
           message: 'Error fetching Swagger documentation',

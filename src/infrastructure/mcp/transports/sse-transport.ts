@@ -241,7 +241,7 @@ export class SseTransport implements McpTransport {
    * Fetch the real Swagger resource content from the generated OpenAPI document.
    * @private
    */
-  private async fetchRealSwaggerResource(uri: string, requestId: unknown): Promise<unknown> {
+  private async fetchRealSwaggerResource(uri: string): Promise<{ result?: unknown; error?: unknown }> {
     try {
       // Try to read the exported OpenAPI JSON file first
       const fs = await import('fs');
@@ -253,8 +253,6 @@ export class SseTransport implements McpTransport {
         const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
         
         return {
-          jsonrpc: '2.0',
-          id: requestId,
           result: {
             contents: [
               {
@@ -287,8 +285,6 @@ export class SseTransport implements McpTransport {
       };
 
       return {
-        jsonrpc: '2.0',
-        id: requestId,
         result: {
           contents: [
             {
@@ -301,8 +297,6 @@ export class SseTransport implements McpTransport {
       };
     } catch (error) {
       return {
-        jsonrpc: '2.0',
-        id: requestId,
         error: {
           code: -32603,
           message: 'Error fetching Swagger documentation',
@@ -316,7 +310,7 @@ export class SseTransport implements McpTransport {
    * Process MCP request and return response.
    * @private
    */
-  private processMcpRequest(request: unknown): unknown {
+  private async processMcpRequest(request: unknown): Promise<unknown> {
     const req = request as { method?: string; id?: unknown; params?: unknown };
     
     switch (req.method) {
@@ -329,7 +323,7 @@ export class SseTransport implements McpTransport {
       case 'resources/list':
         return this.processResourcesList(req);
       case 'resources/read':
-        return this.processResourcesRead(req);
+        return await this.processResourcesRead(req);
       default:
         return this.processUnknownMethod(req);
     }
@@ -441,13 +435,18 @@ export class SseTransport implements McpTransport {
    * Process resources/read request.
    * @private
    */
-  private processResourcesRead(req: { id?: unknown; params?: unknown }): unknown {
+  private async processResourcesRead(req: { id?: unknown; params?: unknown }): Promise<unknown> {
     const params = req.params as { uri?: string };
     const uri = params?.uri;
     
     if (uri?.startsWith('swagger://docs') && uri.includes('/swagger/specs')) {
       // Read the real Swagger JSON specification from the generated document
-      return this.fetchRealSwaggerResource(uri, req.id);
+      const result = await this.fetchRealSwaggerResource(uri);
+      return {
+        jsonrpc: '2.0',
+        id: req.id,
+        ...result,
+      };
     } else {
       return {
         jsonrpc: '2.0',

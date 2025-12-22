@@ -505,8 +505,6 @@ describe('HttpTransport', () => {
       expect(mockFs.existsSync).toHaveBeenCalledWith('/path/to/openapi.json');
       expect(mockFs.readFileSync).toHaveBeenCalledWith('/path/to/openapi.json', 'utf8');
       expect(mockTransport.send).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        id: undefined,
         result: {
           contents: [
             {
@@ -538,8 +536,6 @@ describe('HttpTransport', () => {
       await (transport as any).fetchRealSwaggerResource(uri, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        id: undefined,
         result: {
           contents: [
             {
