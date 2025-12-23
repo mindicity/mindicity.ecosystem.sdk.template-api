@@ -17,6 +17,7 @@ This is a template-based NestJS API project that serves as the foundation for al
 ### What Gets Modified During Bootstrap
 
 **✅ ONLY THESE AREAS ARE MODIFIED:**
+
 - `src/modules/template/` → `src/modules/{api_name}/` (rename and update content)
 - `test/template.e2e-spec.ts` → `test/{api_name}.e2e-spec.ts` (rename and update)
 - `package.json` (name, description, keywords only)
@@ -26,6 +27,7 @@ This is a template-based NestJS API project that serves as the foundation for al
 - `.env.example` (project-specific prefixes only)
 
 **🔒 CORE INFRASTRUCTURE REMAINS UNTOUCHED:**
+
 - `src/common/` - Shared utilities and services
 - `src/config/` - Configuration schemas (except routes.config.ts)
 - `src/infrastructure/` - Database, MCP, external services
@@ -60,7 +62,8 @@ This is a template-based NestJS API project that serves as the foundation for al
 git clone -b develop ssh://git@gitlab.devops.mindicity.it:2222/mindicity/ecosystem/sdk/mindicity.ecosystem.sdk.template-api.git .
 ```
 
-**IMPORTANT**: 
+**IMPORTANT**:
+
 - The `.` at the end clones the template directly into the current directory (project root)
 - Ensure you are in an empty directory before running the clone command
 - Always use the `develop` branch as it contains the latest stable template version with all required infrastructure and patterns
@@ -75,7 +78,8 @@ git clone -b develop ssh://git@gitlab.devops.mindicity.it:2222/mindicity/ecosyst
 2. **API Module Name**: The main module/domain name for the API (e.g., "users", "weather")
 
 **Example Declaration**:
-```
+
+```text
 Project Name: user-management
 API Module Name: users
 Description: User management and authentication API
@@ -217,19 +221,20 @@ Description: User management and authentication API
 
 **CRITICAL**: After bootstrap completion, MCP tools MUST be implemented for the new API module.
 
-#### **Mandatory MCP Tool Implementation Rules**
+#### Mandatory MCP Tool Implementation Rules
 
 **DEFAULT BEHAVIOR**: Unless explicitly specified otherwise, MCP tools MUST be implemented for **HTTP transport**
 
 **Implementation Decision Matrix**:
 
 | Bootstrap Request | MCP Implementation | Transport | Functionality |
-|------------------|-------------------|-----------|---------------|
+|-------------------|-------------------|-----------|---------------|
 | Standard bootstrap | ✅ **MANDATORY HTTP** | HTTP | Complete tools + resources |
 | "Bootstrap with SSE" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
 | "Bootstrap for real-time" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
 
 **Mandatory Tool Generation**:
+
 ```typescript
 // For bootstrapped {api_name} module, MUST create:
 // Pattern: {action}_{api_name}_{entity}
@@ -249,6 +254,7 @@ Description: User management and authentication API
 ```
 
 **MCP Integration Steps (MANDATORY)**:
+
 1. Add `{api_name}Service` to `TransportDependencies` interface
 2. Update `createTransportDependencies` function
 3. Inject service in `McpServerService` constructor
@@ -256,8 +262,6 @@ Description: User management and authentication API
 5. Implement handler methods that delegate to service methods
 6. Add tool descriptions to `ListToolsRequestSchema`
 7. Create MCP E2E tests for all new tools
-
-### Step 8: Verification
 
 ### Step 8: Verification
 
@@ -271,6 +275,7 @@ Description: User management and authentication API
 6. **MCP Integration Check**: Verify MCP tools are implemented and working
 
 **Test Files Verification Checklist**:
+
 - [ ] All test files renamed from `template.*` to `{api_name}.*`
 - [ ] Import paths updated in test files
 - [ ] Class references updated (`TemplateController` → `{ApiNamePascal}Controller`)
@@ -308,7 +313,7 @@ Description: User management and authentication API
 
 ## AI Assistant Guidelines
 
-### Critical Rules
+### Critical Rules for AI Assistants
 
 1. **REQUIRE user declaration** - Always require explicit project name and API module name declaration before starting
 2. **NEVER skip validation** - Always validate input parameters before starting
@@ -317,7 +322,7 @@ Description: User management and authentication API
 5. **Handle errors gracefully** - If any step fails, provide clear error messages and cleanup guidance
 6. **MANDATORY MCP INTEGRATION** - Always implement MCP tools for HTTP transport unless SSE explicitly requested
 
-### Input Validation
+### Input Validation Rules
 
 **project_name**:
 
@@ -360,3 +365,18 @@ The bootstrap is successful when:
 - `npm run test` passes with 100% success rate
 - **MCP tools are mandatorily implemented** for the new API module
 - **HTTP transport is configured** as default (unless SSE explicitly requested)
+
+### AI Assistant Execution Pattern
+
+**STEP-BY-STEP EXECUTION**:
+
+1. **Validate User Input**: Confirm project_name, api_name, and description meet requirements
+2. **Generate Variables**: Create all derived variables (pascal case, upper case, etc.)
+3. **File Operations**: Execute renaming operations in exact order specified
+4. **Content Updates**: Replace all template references with new API names
+5. **Configuration Updates**: Update package.json, app.module.ts, routes.config.ts
+6. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
+7. **Verification**: Run build, lint, and test commands to ensure success
+8. **Report Results**: Provide clear success/failure status with next steps
+
+**CRITICAL**: Never proceed to the next step if the current step fails. Always fix issues before continuing.
