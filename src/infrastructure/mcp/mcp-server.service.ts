@@ -12,6 +12,7 @@ import {
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 import { McpConfig } from '../../config/mcp.config';
 import { HealthService } from '../../modules/health/health.service';
+import { HealthMcpStdioTool } from '../../modules/health/mcp';
 
 import { McpTransport } from './transports/base-transport';
 import { createTransportDependencies } from './transports/transport-dependencies';
@@ -73,6 +74,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   private server: Server | null = null;
   private transport: McpTransport | null = null;
   private readonly mcpConfig: McpConfig;
+  private healthMcpStdioTool: HealthMcpStdioTool;
 
   constructor(
     private readonly configService: ConfigService,
@@ -82,6 +84,9 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     this.logger = loggerService.child({ serviceContext: McpServerService.name });
     this.logger.setContext(McpServerService.name);
     this.mcpConfig = this.configService.get<McpConfig>('mcp')!;
+    
+    // Initialize MCP tools
+    this.healthMcpStdioTool = new HealthMcpStdioTool(this.healthService);
   }
 
   /**
@@ -535,7 +540,22 @@ Content: Machine-readable API specification that can be used to generate client 
    */
   private handleGetApiHealth(): { content: Array<{ type: string; text: string }> } {
     try {
-      const healthStatus = this.healthService.getHealthStatus();
+      // Get health data using appropriate tool based on transport type
+      let healthStatus;
+      if (this.mcpConfig.transport === 'stdio') {
+        // Use STDIO tool for consistency, but extract the data
+        const stdioResult = this.healthMcpStdioTool.getApiHealth({});
+        // Handle the content array properly
+        const textContent = stdioResult.content.find(item => item.type === 'text');
+        if (textContent && 'text' in textContent) {
+          healthStatus = JSON.parse(textContent.text);
+        } else {
+          healthStatus = this.healthService.getHealthStatus();
+        }
+      } else {
+        // Direct service call for other transports
+        healthStatus = this.healthService.getHealthStatus();
+      }
 
       // Add MCP-specific metadata to help AI agents understand the response
       const mcpResponse = {

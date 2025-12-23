@@ -4,10 +4,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContextLoggerService } from '../../../common/services/context-logger.service';
 import { HealthService } from '../health.service';
 
-import { HealthMcpHttpTool } from './health-mcp-http.tool';
+import { HealthMcpStdioTool } from './health-mcp-stdio.tool';
 
-describe('HealthMcpHttpTool', () => {
-  let healthMcpHttpTool: HealthMcpHttpTool;
+describe('HealthMcpStdioTool', () => {
+  let healthMcpStdioTool: HealthMcpStdioTool;
   let healthService: HealthService;
 
   const mockHealthData = {
@@ -52,7 +52,7 @@ describe('HealthMcpHttpTool', () => {
     }).compile();
 
     healthService = module.get<HealthService>(HealthService);
-    healthMcpHttpTool = new HealthMcpHttpTool(healthService);
+    healthMcpStdioTool = new HealthMcpStdioTool(healthService);
   });
 
   describe('getApiHealth', () => {
@@ -61,7 +61,7 @@ describe('HealthMcpHttpTool', () => {
       jest.spyOn(healthService, 'getHealthStatus').mockReturnValue(mockHealthData);
 
       // Act
-      const result = healthMcpHttpTool.getApiHealth({});
+      const result = healthMcpStdioTool.getApiHealth({});
 
       // Assert
       expect(result).toEqual({
@@ -80,7 +80,7 @@ describe('HealthMcpHttpTool', () => {
       jest.spyOn(healthService, 'getHealthStatus').mockReturnValue(mockHealthData);
 
       // Act
-      const result = healthMcpHttpTool.getApiHealth({});
+      const result = healthMcpStdioTool.getApiHealth({});
 
       // Assert
       expect(result.content).toHaveLength(1);
@@ -91,7 +91,7 @@ describe('HealthMcpHttpTool', () => {
   describe('getToolDefinitions', () => {
     it('should return comprehensive tool definitions with detailed information', () => {
       // Act
-      const definitions = HealthMcpHttpTool.getToolDefinitions();
+      const definitions = HealthMcpStdioTool.getToolDefinitions();
 
       // Assert
       expect(definitions).toHaveLength(1);
@@ -99,7 +99,7 @@ describe('HealthMcpHttpTool', () => {
       const toolDef = definitions[0];
       expect(toolDef.name).toBe('get_api_health');
       expect(toolDef.description).toContain('comprehensive health status');
-      expect(toolDef.description).toContain('HTTP transport');
+      expect(toolDef.description).toContain('STDIO transport');
       expect(toolDef.inputSchema).toEqual({
         type: 'object',
         properties: {},
@@ -108,7 +108,7 @@ describe('HealthMcpHttpTool', () => {
       
       // Check usage information
       expect(toolDef.usage).toBeDefined();
-      expect(toolDef.usage?.purpose).toContain('HTTP transport');
+      expect(toolDef.usage?.purpose).toContain('STDIO transport');
       expect(toolDef.usage?.when_to_use).toBeInstanceOf(Array);
       expect(toolDef.usage?.when_to_use.length).toBeGreaterThan(0);
       expect(toolDef.usage?.interpretation).toBeDefined();
@@ -118,7 +118,7 @@ describe('HealthMcpHttpTool', () => {
 
     it('should return static definitions without instance', () => {
       // Act
-      const definitions = HealthMcpHttpTool.getToolDefinitions();
+      const definitions = HealthMcpStdioTool.getToolDefinitions();
 
       // Assert
       expect(definitions).toBeDefined();

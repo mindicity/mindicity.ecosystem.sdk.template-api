@@ -2,7 +2,7 @@ import { createServer, Server as HttpServer } from 'http';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
-import { HealthMcpTool } from '../../../modules/health/mcp';
+import { HealthMcpHttpTool } from '../../../modules/health/mcp';
 
 import { McpTransport, TransportConfig } from './base-transport';
 import { OptionalTransportDependencies } from './transport-dependencies';
@@ -14,7 +14,7 @@ import { OptionalTransportDependencies } from './transport-dependencies';
 export class HttpTransport implements McpTransport {
   private httpServer: HttpServer | null = null;
   private mcpServer: Server | null = null;
-  private healthMcpTool: HealthMcpTool;
+  private healthMcpTool: HealthMcpHttpTool;
 
   constructor(
     private readonly config: TransportConfig,
@@ -26,7 +26,7 @@ export class HttpTransport implements McpTransport {
     }
 
     // Initialize MCP tools
-    this.healthMcpTool = new HealthMcpTool(dependencies.healthService);
+    this.healthMcpTool = new HealthMcpHttpTool(dependencies.healthService);
   }
 
   /**
@@ -292,7 +292,7 @@ export class HttpTransport implements McpTransport {
       jsonrpc: '2.0',
       id: req.id,
       result: {
-        tools: HealthMcpTool.getToolDefinitions(),
+        tools: HealthMcpHttpTool.getToolDefinitions(),
       },
     });
   }

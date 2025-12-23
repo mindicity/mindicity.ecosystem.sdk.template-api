@@ -352,11 +352,54 @@ describe('HttpTransport', () => {
           tools: [
             {
               name: 'get_api_health',
-              description: 'Check the health status of the API server',
+              description: `Check the comprehensive health status of the API server via HTTP transport.
+
+This tool provides detailed health information including:
+- Server operational status (healthy/unhealthy)
+- Current timestamp and server identification
+- Version information and environment details
+- System resource usage (memory, uptime)
+- Performance metrics and operational data
+
+Use this tool to verify API availability, monitor system health, and troubleshoot connectivity issues before making other API requests.`,
               inputSchema: {
                 type: 'object',
                 properties: {},
                 required: [],
+              },
+              usage: {
+                purpose: 'Monitor API server health and operational status via HTTP transport',
+                when_to_use: [
+                  'Before making other API requests to ensure server availability',
+                  'During automated health monitoring and alerting workflows',
+                  'When troubleshooting connectivity or performance issues',
+                  'For system status verification in CI/CD pipelines',
+                  'To gather server information for debugging purposes',
+                ],
+                response_format: 'JSON object with health status, server info, and system metrics',
+                interpretation: {
+                  status: 'healthy = server operational and ready, unhealthy = server has issues',
+                  timestamp: 'Current server time when health check was performed (ISO 8601)',
+                  server: 'API server name and identification string',
+                  version: 'Current API version deployed and running',
+                  environment: 'Deployment environment (development, staging, production)',
+                  uptime: 'Server uptime in seconds since last restart',
+                  memory: 'Current memory usage statistics (RSS, heap, external)',
+                },
+                examples: [
+                  {
+                    scenario: 'Healthy server check',
+                    expected_result: 'Status: healthy, with current timestamp, version info, and resource usage',
+                  },
+                  {
+                    scenario: 'Pre-request validation',
+                    expected_result: 'Confirms server is operational before executing other API calls',
+                  },
+                  {
+                    scenario: 'System monitoring',
+                    expected_result: 'Provides metrics for uptime, memory usage, and performance tracking',
+                  },
+                ],
               },
             },
           ],

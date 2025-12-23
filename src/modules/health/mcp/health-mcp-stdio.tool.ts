@@ -3,10 +3,10 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { HealthService } from '../health.service';
 
 /**
- * MCP tool for health module - HTTP transport.
- * Provides health check functionality for AI agents via MCP HTTP protocol.
+ * MCP tool for health module - STDIO transport.
+ * Provides health check functionality for AI agents via MCP STDIO protocol.
  */
-export class HealthMcpHttpTool {
+export class HealthMcpStdioTool {
   constructor(private readonly healthService: HealthService) {}
 
   /**
@@ -57,7 +57,7 @@ export class HealthMcpHttpTool {
     return [
       {
         name: 'get_api_health',
-        description: `Check the comprehensive health status of the API server via HTTP transport.
+        description: `Check the comprehensive health status of the API server via STDIO transport.
 
 This tool provides detailed health information including:
 - Server operational status (healthy/unhealthy)
@@ -73,7 +73,7 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
           required: [],
         },
         usage: {
-          purpose: 'Monitor API server health and operational status via HTTP transport',
+          purpose: 'Monitor API server health and operational status via STDIO transport',
           when_to_use: [
             'Before making other API requests to ensure server availability',
             'During automated health monitoring and alerting workflows',

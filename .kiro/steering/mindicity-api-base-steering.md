@@ -331,15 +331,68 @@ async findOne(id: string): Promise<UserData | null> {
 
 ### MCP Tool Implementation Pattern
 ```typescript
-// In McpServerService - delegate to existing services
-private async handleGetUsersList(args: any): Promise<CallToolResult> {
-  const users = await this.userService.findAll(args);
-  return {
-    content: [{ 
-      type: 'text', 
-      text: JSON.stringify(users, null, 2) 
-    }],
-  };
+// MCP Tool Class with comprehensive definitions
+export class {ModuleName}McpHttpTool {
+  constructor(private readonly {moduleName}Service: {ModuleName}Service) {}
+
+  // Tool method implementation
+  {toolMethod}(_args: Record<string, unknown>): CallToolResult {
+    const data = this.{moduleName}Service.{serviceMethod}();
+    return {
+      content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+    };
+  }
+
+  // Comprehensive tool definitions with detailed descriptions
+  static getToolDefinitions(): Array<{
+    name: string;
+    description: string;
+    inputSchema: object;
+    usage?: {
+      purpose: string;
+      when_to_use: string[];
+      response_format: string;
+      interpretation: Record<string, string>;
+      examples: Array<{ scenario: string; expected_result: string }>;
+    };
+  }> {
+    return [
+      {
+        name: '{tool_name}',
+        description: `Comprehensive description of what this tool does.
+
+Detailed explanation including:
+- Primary functionality and purpose
+- Data returned and format
+- When and why to use this tool
+- Integration with other API operations`,
+        inputSchema: {
+          type: 'object',
+          properties: { /* parameter definitions */ },
+          required: [],
+        },
+        usage: {
+          purpose: 'Clear statement of tool purpose and transport type',
+          when_to_use: [
+            'Specific scenario 1',
+            'Specific scenario 2',
+            'Integration use case',
+          ],
+          response_format: 'Description of response structure and data types',
+          interpretation: {
+            field1: 'Explanation of what this field means',
+            field2: 'How to interpret this value',
+          },
+          examples: [
+            {
+              scenario: 'Common use case',
+              expected_result: 'What the agent should expect',
+            },
+          ],
+        },
+      },
+    ];
+  }
 }
 ```
 
@@ -353,6 +406,78 @@ private async handleGetUsersList(args: any): Promise<CallToolResult> {
 - [ ] Create MCP E2E tests for all tools
 
 **❌ Forbidden:** Implementing business logic directly in MCP tools (must delegate to services)
+
+## MCP Tool Definition Best Practices
+
+**CRITICAL:** Tool definitions should be comprehensive and provide detailed guidance for AI agents.
+
+### Rich Tool Definitions Structure
+```typescript
+// ✅ CORRECT: Comprehensive tool definition
+static getToolDefinitions() {
+  return [{
+    name: 'get_users_list',
+    description: `Retrieve a comprehensive list of users with filtering and pagination.
+
+This tool provides access to user data including:
+- User identification and profile information
+- Account status and permissions
+- Registration and activity timestamps
+- Filtering by status, role, or date ranges
+
+Use this tool for user management, reporting, and administrative tasks.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['active', 'inactive', 'pending'] },
+        limit: { type: 'number', minimum: 1, maximum: 100 },
+      },
+      required: [],
+    },
+    usage: {
+      purpose: 'Retrieve and manage user data via HTTP transport',
+      when_to_use: [
+        'When displaying user lists in admin interfaces',
+        'For user management and moderation tasks',
+        'During user analytics and reporting workflows',
+        'To verify user existence before other operations',
+      ],
+      response_format: 'Array of user objects with ID, name, email, status, and timestamps',
+      interpretation: {
+        status: 'active = user can login, inactive = suspended, pending = awaiting verification',
+        createdAt: 'User registration timestamp in ISO 8601 format',
+        lastLoginAt: 'Most recent login time, null if never logged in',
+      },
+      examples: [
+        {
+          scenario: 'Get all active users',
+          expected_result: 'List of users with status: active and their profile data',
+        },
+        {
+          scenario: 'Paginated user list',
+          expected_result: 'Limited number of users based on limit parameter',
+        },
+      ],
+    },
+  }];
+}
+
+// ❌ WRONG: Minimal, unhelpful definition
+static getToolDefinitions() {
+  return [{
+    name: 'get_users_list',
+    description: 'Get users',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  }];
+}
+```
+
+### Tool Definition Requirements
+- **Comprehensive Description**: Multi-line description with bullet points explaining functionality
+- **Transport Specification**: Clearly indicate which transport (HTTP/STDIO/SSE) the tool uses
+- **Usage Guidance**: When to use, response format, field interpretations
+- **Practical Examples**: Real-world scenarios and expected outcomes
+- **Input Schema**: Detailed parameter definitions with validation rules
 
 ## Module Creation Checklist
 
