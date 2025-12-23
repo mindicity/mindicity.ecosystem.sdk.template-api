@@ -342,16 +342,16 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
    * Routes resource requests to the correct module based on URI patterns.
    * @private
    */
-  private async handleDynamicResourceRead(uri: string): Promise<{
+  private handleDynamicResourceRead(uri: string): {
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
-  }> {
+  } {
     try {
       // Route to appropriate module based on URI patterns
       
       // Health module resources (openapi specs, health docs)
       if (uri.startsWith('doc://openapi') && uri.includes('/specs')) {
         const healthResources = new HealthMcpResources(this.configService);
-        return await healthResources.handleResourceRead(uri);
+        return healthResources.handleResourceRead(uri);
       }
       
       // Future module resources can be added here:

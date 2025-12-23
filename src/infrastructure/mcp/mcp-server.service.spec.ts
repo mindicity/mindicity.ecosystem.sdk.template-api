@@ -1,4 +1,3 @@
-import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -289,8 +288,8 @@ describe('McpServerService', () => {
   });
 
   describe('tool handlers', () => {
-    it('should handle get_api_health tool by delegating to HTTP tool', async () => {
-      const result = await (service as any).handleDynamicToolCall('get_api_health', {});
+    it('should handle get_api_health tool by delegating to HTTP tool', () => {
+      const result = (service as any).handleDynamicToolCall('get_api_health', {});
 
       expect(result).toHaveProperty('content');
       expect(result.content).toHaveLength(1);
@@ -303,7 +302,7 @@ describe('McpServerService', () => {
       expect(healthData).toHaveProperty('memory');
     });
 
-    it('should handle get_api_health tool errors', async () => {
+    it('should handle get_api_health tool errors', () => {
       // Mock health service to throw an error
       mockHealthService.getHealthStatus.mockImplementation(() => {
         throw new Error('Health service unavailable');
@@ -528,8 +527,8 @@ describe('McpServerService', () => {
   });
 
   describe('resource handling', () => {
-    it('should handle unknown resource URIs', async () => {
-      const result = await (service as any).handleDynamicResourceRead('unknown://resource');
+    it('should handle unknown resource URIs', () => {
+      const result = (service as any).handleDynamicResourceRead('unknown://resource');
 
       expect(result).toHaveProperty('contents');
       expect(result.contents).toHaveLength(1);
@@ -538,8 +537,8 @@ describe('McpServerService', () => {
       expect(result.contents[0].text).toContain('Error reading resource: Unknown resource URI');
     });
 
-    it('should handle swagger resource URIs', async () => {
-      const result = await (service as any).handleDynamicResourceRead('doc://openapi/test/specs');
+    it('should handle swagger resource URIs', () => {
+      const result = (service as any).handleDynamicResourceRead('doc://openapi/test/specs');
 
       expect(result).toHaveProperty('contents');
       expect(result.contents).toHaveLength(1);
@@ -556,8 +555,8 @@ describe('McpServerService', () => {
       expect(parsedContent).toHaveProperty('info');
     });
 
-    it('should delegate to health module resources for swagger URIs', async () => {
-      const result = await (service as any).handleDynamicResourceRead('doc://openapi/test/specs');
+    it('should delegate to health module resources for swagger URIs', () => {
+      const result = (service as any).handleDynamicResourceRead('doc://openapi/test/specs');
 
       expect(result).toHaveProperty('contents');
       expect(result.contents).toHaveLength(1);

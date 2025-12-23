@@ -245,7 +245,7 @@ export class HttpTransport implements McpTransport {
           this.handleToolsList(req, transport);
           break;
         case 'tools/call':
-          await this.handleToolsCall(req, transport);
+          this.handleToolsCall(req, transport);
           break;
         case 'resources/list':
           this.handleResourcesList(req, transport);
@@ -301,7 +301,7 @@ export class HttpTransport implements McpTransport {
    * Handle tools/call request.
    * @private
    */
-  private async handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): Promise<void> {
+  private handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): void {
     const params = req.params as { name?: string; arguments?: unknown };
     const toolName = params?.name;
     const toolArgs = (params?.arguments as Record<string, unknown>) ?? {};

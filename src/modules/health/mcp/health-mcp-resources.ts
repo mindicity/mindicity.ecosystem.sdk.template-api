@@ -1,3 +1,6 @@
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -25,51 +28,125 @@ export class HealthMcpResources {
     
     // Try to read the OpenAPI file to generate dynamic descriptions
     try {
-      const fs = require('fs');
-      const path = require('path');
-      
-      const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
-      
-      if (fs.existsSync(openApiPath)) {
-        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
-        const openApiSpec = JSON.parse(swaggerContent);
-        
-        // Extract information from the actual OpenAPI spec
-        const apiTitle = openApiSpec.info?.title || 'API';
-        const apiDescription = openApiSpec.info?.description || 'API documentation';
-        const apiVersion = openApiSpec.info?.version || '1.0.0';
-        
-        // Get available endpoints
-        const paths = Object.keys(openApiSpec.paths || {});
-        const endpointCount = paths.length;
-        
-        // Get available schemas
-        const schemas = Object.keys(openApiSpec.components?.schemas || {});
-        const schemaCount = schemas.length;
-        
-        // Get available tags
-        const tags = openApiSpec.tags || [];
-        const tagNames = tags.map((tag: any) => tag.name).join(', ');
-        
-        return [
-          {
-            uri: `doc://openapi${apiScopePrefix}/specs`,
-            name: `${apiTitle} OpenAPI Specification`,
-            description: `Complete OpenAPI 3.0 specification for ${apiTitle} (v${apiVersion}).
+      return HealthMcpResources.generateDynamicResourceDefinitions(apiScopePrefix);
+    } catch {
+      // Fallback to generic description if file doesn't exist or can't be read
+      return HealthMcpResources.generateFallbackResourceDefinitions(apiScopePrefix);
+    }
+  }
 
-${apiDescription}
+  /**
+   * Generate dynamic resource definitions from OpenAPI file.
+   * @private
+   */
+  private static generateDynamicResourceDefinitions(apiScopePrefix: string): Array<{
+    uri: string;
+    name: string;
+    description: string;
+    mimeType: string;
+  }> {
+    const openApiPath = join(process.cwd(), 'docs', 'api', 'openapi.json');
+    
+    if (!existsSync(openApiPath)) {
+      throw new Error('OpenAPI file not found');
+    }
+
+    const swaggerContent = readFileSync(openApiPath, 'utf8');
+    const openApiSpec = JSON.parse(swaggerContent);
+    
+    // Extract basic information from the OpenAPI spec
+    const apiInfo = HealthMcpResources.extractApiInfo(openApiSpec);
+    const pathsInfo = HealthMcpResources.extractPathsInfo(openApiSpec);
+    
+    return [
+      {
+        uri: `doc://openapi${apiScopePrefix}/specs`,
+        name: `${apiInfo.title} OpenAPI Specification`,
+        description: HealthMcpResources.buildDynamicDescription(apiInfo, pathsInfo),
+        mimeType: 'application/json',
+      },
+    ];
+  }
+
+  /**
+   * Extract API information from OpenAPI spec.
+   * @private
+   */
+  private static extractApiInfo(openApiSpec: Record<string, unknown>): {
+    title: string;
+    version: string;
+    description: string;
+    schemaCount: number;
+    tagNames: string;
+  } {
+    const info = openApiSpec.info as Record<string, unknown> | undefined;
+    const apiTitle = info?.title as string ?? 'API';
+    const apiDescription = info?.description as string ?? 'API documentation';
+    const apiVersion = info?.version as string ?? '1.0.0';
+    
+    // Get available schemas
+    const components = openApiSpec.components as Record<string, unknown> | undefined;
+    const schemas = components?.schemas as Record<string, unknown> | undefined;
+    const schemaCount = schemas ? Object.keys(schemas).length : 0;
+    
+    // Get available tags
+    const tags = openApiSpec.tags as Array<{ name: string }> | undefined;
+    const tagNames = tags ? tags.map((tag) => tag.name).join(', ') : '';
+    
+    return {
+      title: apiTitle,
+      version: apiVersion,
+      description: apiDescription,
+      schemaCount,
+      tagNames,
+    };
+  }
+
+  /**
+   * Extract paths information from OpenAPI spec.
+   * @private
+   */
+  private static extractPathsInfo(openApiSpec: Record<string, unknown>): {
+    paths: string[];
+    endpointCount: number;
+  } {
+    const pathsObj = openApiSpec.paths as Record<string, unknown> | undefined;
+    const paths = pathsObj ? Object.keys(pathsObj) : [];
+    const endpointCount = paths.length;
+    
+    return {
+      paths,
+      endpointCount,
+    };
+  }
+
+  /**
+   * Build dynamic description from OpenAPI metadata.
+   * @private
+   */
+  private static buildDynamicDescription(
+    apiInfo: { title: string; version: string; description: string; schemaCount: number; tagNames: string },
+    pathsInfo: { paths: string[]; endpointCount: number }
+  ): string {
+    const endpointsList = pathsInfo.paths.slice(0, 10).map(path => `- ${path}`).join('\n');
+    const moreEndpoints = pathsInfo.paths.length > 10 ? `\n- ... and ${pathsInfo.paths.length - 10} more endpoints` : '';
+    const tagsSection = apiInfo.tagNames ? `- API sections: ${apiInfo.tagNames}` : '';
+
+    return `Complete OpenAPI 3.0 specification for ${apiInfo.title} (v${apiInfo.version}).
+
+${apiInfo.description}
 
 This resource contains the full API documentation including:
-- ${endpointCount} available API endpoints with HTTP methods and paths
-- ${schemaCount} data models and schema definitions
+- ${pathsInfo.endpointCount} available API endpoints with HTTP methods and paths
+- ${apiInfo.schemaCount} data models and schema definitions
 - Request/response schemas and validation rules
 - Authentication requirements and security schemes
 - Error response formats and status codes
 - Example requests and responses for all endpoints
-${tagNames ? `- API sections: ${tagNames}` : ''}
+${tagsSection}
 
 Available endpoints:
-${paths.slice(0, 10).map(path => `- ${path}`).join('\n')}${paths.length > 10 ? `\n- ... and ${paths.length - 10} more endpoints` : ''}
+${endpointsList}${moreEndpoints}
 
 Use this resource to:
 - Understand the complete API structure and capabilities
@@ -80,17 +157,19 @@ Use this resource to:
 - Access authentication and security requirements
 
 Format: JSON document following OpenAPI 3.0 specification standard.
-Content: Machine-readable API specification that can be used to generate client code, documentation, or API calls.`,
-            mimeType: 'application/json',
-          },
-        ];
-      }
-    } catch (error) {
-      // If we can't read the file, fall back to a generic description
-      console.warn('Could not read OpenAPI file for dynamic resource generation:', error);
-    }
-    
-    // Fallback to generic description if file doesn't exist or can't be read
+Content: Machine-readable API specification that can be used to generate client code, documentation, or API calls.`;
+  }
+
+  /**
+   * Generate fallback resource definitions when OpenAPI file is not available.
+   * @private
+   */
+  private static generateFallbackResourceDefinitions(apiScopePrefix: string): Array<{
+    uri: string;
+    name: string;
+    description: string;
+    mimeType: string;
+  }> {
     return [
       {
         uri: `doc://openapi${apiScopePrefix}/specs`,
@@ -124,12 +203,12 @@ Content: Machine-readable API specification that can be used to generate client 
    * @param uri - Resource URI to read
    * @returns Resource content
    */
-  async handleResourceRead(uri: string): Promise<{
+  handleResourceRead(uri: string): {
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
-  }> {
+  } {
     try {
       if (uri.startsWith('doc://openapi') && uri.includes('/specs')) {
-        return await this.fetchHealthSwaggerResource(uri);
+        return this.fetchHealthSwaggerResource(uri);
       }
 
       throw new Error(`Unknown health resource URI: ${uri}`);
@@ -150,18 +229,14 @@ Content: Machine-readable API specification that can be used to generate client 
    * Fetch the Health API Swagger resource content.
    * @private
    */
-  private async fetchHealthSwaggerResource(uri: string): Promise<{
+  private fetchHealthSwaggerResource(uri: string): {
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
-  }> {
+  } {
     try {
-      // Try to read the exported OpenAPI JSON file first
-      const fs = await import('fs');
-      const path = await import('path');
+      const openApiPath = join(process.cwd(), 'docs', 'api', 'openapi.json');
       
-      const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
-      
-      if (fs.existsSync(openApiPath)) {
-        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
+      if (existsSync(openApiPath)) {
+        const swaggerContent = readFileSync(openApiPath, 'utf8');
         
         return {
           contents: [
