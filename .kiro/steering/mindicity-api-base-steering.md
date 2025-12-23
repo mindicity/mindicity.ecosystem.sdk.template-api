@@ -310,6 +310,15 @@ async findOne(id: string): Promise<UserData | null> {
 - HTTP provides complete functionality, production-ready error handling
 - One tool per endpoint/intention with clear naming
 
+**MCP File Naming Convention:**
+- **Pattern**: `{api_name}-mcp-{transport}.tool.ts`
+- **Examples**: 
+  - `users-mcp-http.tool.ts` (HTTP transport)
+  - `weather-mcp-sse.tool.ts` (SSE transport)
+  - `notifications-mcp-http.tool.ts` (HTTP transport)
+- **Test Files**: `{api_name}-mcp-{transport}.tool.spec.ts`
+- **Index Export**: Update `mcp/index.ts` to export from the correctly named file
+
 **Tool Naming Pattern:** `{action}_{module}_{entity}`
 ```typescript
 // Examples:

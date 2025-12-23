@@ -2,6 +2,8 @@ import { createServer, Server as HttpServer } from 'http';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
+import { HealthMcpTool } from '../../../modules/health/mcp';
+
 import { McpTransport, TransportConfig } from './base-transport';
 import { OptionalTransportDependencies } from './transport-dependencies';
 
@@ -12,6 +14,7 @@ import { OptionalTransportDependencies } from './transport-dependencies';
 export class HttpTransport implements McpTransport {
   private httpServer: HttpServer | null = null;
   private mcpServer: Server | null = null;
+  private healthMcpTool: HealthMcpTool;
 
   constructor(
     private readonly config: TransportConfig,
@@ -21,6 +24,9 @@ export class HttpTransport implements McpTransport {
     if (!dependencies.healthService) {
       throw new Error('HttpTransport requires HealthService in dependencies');
     }
+
+    // Initialize MCP tools
+    this.healthMcpTool = new HealthMcpTool(dependencies.healthService);
   }
 
   /**
@@ -239,7 +245,7 @@ export class HttpTransport implements McpTransport {
           this.handleToolsList(req, transport);
           break;
         case 'tools/call':
-          this.handleToolsCall(req, transport);
+          await this.handleToolsCall(req, transport);
           break;
         case 'resources/list':
           this.handleResourcesList(req, transport);
@@ -286,17 +292,7 @@ export class HttpTransport implements McpTransport {
       jsonrpc: '2.0',
       id: req.id,
       result: {
-        tools: [
-          {
-            name: 'get_api_health',
-            description: 'Check the health status of the API server',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
-            },
-          },
-        ],
+        tools: HealthMcpTool.getToolDefinitions(),
       },
     });
   }
@@ -305,32 +301,38 @@ export class HttpTransport implements McpTransport {
    * Handle tools/call request.
    * @private
    */
-  private handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): void {
+  private async handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): Promise<void> {
     const params = req.params as { name?: string; arguments?: unknown };
     const toolName = params?.name;
+    const toolArgs = (params?.arguments as Record<string, unknown>) ?? {};
     
-    if (toolName === 'get_api_health') {
-      const healthData = this.dependencies.healthService!.getHealthStatus();
+    try {
+      if (toolName === 'get_api_health') {
+        const result = this.healthMcpTool.getApiHealth(toolArgs);
 
-      transport.send({
-        jsonrpc: '2.0',
-        id: req.id,
-        result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(healthData, null, 2),
-            },
-          ],
-        },
-      });
-    } else {
+        transport.send({
+          jsonrpc: '2.0',
+          id: req.id,
+          result,
+        });
+      } else {
+        transport.send({
+          jsonrpc: '2.0',
+          id: req.id,
+          error: {
+            code: -32601,
+            message: `Unknown tool: ${toolName}`,
+          },
+        });
+      }
+    } catch (error) {
       transport.send({
         jsonrpc: '2.0',
         id: req.id,
         error: {
-          code: -32601,
-          message: `Unknown tool: ${toolName}`,
+          code: -32603,
+          message: 'Tool execution failed',
+          data: error instanceof Error ? error.message : 'Unknown error',
         },
       });
     }

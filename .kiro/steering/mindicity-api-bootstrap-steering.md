@@ -225,6 +225,15 @@ Description: User management and authentication API
 
 **DEFAULT BEHAVIOR**: Unless explicitly specified otherwise, MCP tools MUST be implemented for **HTTP transport**
 
+**MCP File Naming Convention**: 
+- **Pattern**: `{api_name}-mcp-{transport}.tool.ts`
+- **Examples**: 
+  - `users-mcp-http.tool.ts` (HTTP transport)
+  - `users-mcp-sse.tool.ts` (SSE transport)
+  - `weather-mcp-http.tool.ts` (HTTP transport)
+- **Test Files**: `{api_name}-mcp-{transport}.tool.spec.ts`
+- **Index Export**: Update `mcp/index.ts` to export from the correctly named file
+
 **Implementation Decision Matrix**:
 
 | Bootstrap Request | MCP Implementation | Transport | Functionality |
