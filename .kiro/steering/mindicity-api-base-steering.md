@@ -131,6 +131,145 @@ src/modules/{your-api-name}/
 - Modifying main application bootstrap
 - Altering core test infrastructure
 
+### 🏗️ Infrastructure Extension Guidelines
+
+**WHEN INFRASTRUCTURE EXTENSION IS ALLOWED:**
+
+While the core principle is to keep modules isolated in `src/modules/`, there are legitimate cases where extending the infrastructure is necessary and permitted:
+
+#### ✅ **PERMITTED Infrastructure Extensions**
+
+**New Infrastructure Services Required by Modules:**
+```
+src/infrastructure/
+├── database/          # 🔒 CORE: Existing database service
+├── mcp/              # 🔒 CORE: Existing MCP infrastructure
+├── mqtt/             # ✅ NEW: MQTT service for real-time messaging
+├── redis/            # ✅ NEW: Redis service for caching
+├── elasticsearch/    # ✅ NEW: Search service for full-text search
+├── file-storage/     # ✅ NEW: File upload/storage service
+├── notification/     # ✅ NEW: Email/SMS notification service
+├── payment/          # ✅ NEW: Payment gateway integration
+└── external-api/     # ✅ NEW: Third-party API integrations
+```
+
+#### **Infrastructure Extension Rules**
+
+**✅ ALLOWED Infrastructure Extensions:**
+- **New Database Connections**: Additional databases (MongoDB, Redis, etc.)
+- **Message Brokers**: MQTT, RabbitMQ, Apache Kafka for pub/sub
+- **External Services**: Payment gateways, email services, SMS providers
+- **Storage Services**: File storage, object storage (S3, MinIO)
+- **Search Engines**: Elasticsearch, Solr for full-text search
+- **Caching Systems**: Redis, Memcached for performance optimization
+- **Real-time Communication**: WebSocket, Socket.IO for live updates
+- **Monitoring Services**: Custom metrics, health checks, alerting
+
+**✅ EXTENSION PATTERN:**
+```typescript
+// src/infrastructure/mqtt/mqtt.module.ts
+@Module({
+  providers: [MqttService, ContextLoggerService],
+  exports: [MqttService],
+})
+export class MqttModule {}
+
+// src/infrastructure/mqtt/mqtt.service.ts
+@Injectable()
+export class MqttService {
+  private readonly logger: ContextLoggerService;
+
+  constructor(loggerService: ContextLoggerService) {
+    this.logger = loggerService.child({ serviceContext: MqttService.name });
+  }
+
+  async publish(topic: string, payload: unknown): Promise<void> {
+    // MQTT implementation with proper logging
+  }
+}
+
+// Usage in module
+// src/modules/notifications/notifications.module.ts
+@Module({
+  imports: [MqttModule], // Import new infrastructure service
+  controllers: [NotificationsController],
+  providers: [NotificationsService],
+})
+export class NotificationsModule {}
+```
+
+#### **Infrastructure Extension Process**
+
+**Step 1: Justify the Extension**
+- Document why existing infrastructure is insufficient
+- Explain the specific module requirements
+- Consider if the service will be reusable by other modules
+
+**Step 2: Follow Infrastructure Patterns**
+- Create dedicated module in `src/infrastructure/{service-name}/`
+- Implement service with proper logging and error handling
+- Add comprehensive configuration with Zod validation
+- Include unit and integration tests
+
+**Step 3: Integration**
+- Add service to main `AppModule` imports
+- Update environment configuration schemas
+- Document the new service in README and steering
+- Add service to Docker configuration if needed
+
+**Step 4: Module Usage**
+- Import infrastructure module in your API module
+- Inject service in module services (not controllers)
+- Follow dependency injection patterns
+- Add module-specific tests for service integration
+
+#### **❌ FORBIDDEN Infrastructure Modifications**
+
+**DO NOT modify existing infrastructure:**
+- ❌ Changing `DatabaseService` implementation
+- ❌ Modifying `ContextLoggerService` behavior
+- ❌ Altering `McpServerService` core functionality
+- ❌ Changing configuration schemas for existing services
+- ❌ Modifying existing service interfaces or contracts
+
+#### **Infrastructure Extension Examples**
+
+**Example 1: Adding MQTT for Real-time Notifications**
+```bash
+# Create MQTT infrastructure
+mkdir -p src/infrastructure/mqtt
+touch src/infrastructure/mqtt/mqtt.module.ts
+touch src/infrastructure/mqtt/mqtt.service.ts
+touch src/infrastructure/mqtt/mqtt.config.ts
+touch src/infrastructure/mqtt/mqtt.service.spec.ts
+
+# Update configuration
+# Add MQTT_* environment variables to .env.example
+# Add MqttConfig to src/config/index.ts
+```
+
+**Example 2: Adding Redis for Caching**
+```bash
+# Create Redis infrastructure
+mkdir -p src/infrastructure/redis
+touch src/infrastructure/redis/redis.module.ts
+touch src/infrastructure/redis/redis.service.ts
+touch src/infrastructure/redis/redis.config.ts
+touch src/infrastructure/redis/redis.service.spec.ts
+
+# Update module to use caching
+# Import RedisModule in your API module
+# Inject RedisService in your module service
+```
+
+#### **Benefits of Controlled Infrastructure Extension**
+
+1. **🔄 Reusability**: New infrastructure services can be used by multiple modules
+2. **🧪 Testability**: Infrastructure services are properly isolated and testable
+3. **📦 Maintainability**: Clear separation between infrastructure and business logic
+4. **🔒 Security**: Centralized configuration and security patterns
+5. **📈 Scalability**: Infrastructure services can be optimized independently
+
 ### Template Update Process
 
 When a new template version is released:
@@ -170,6 +309,7 @@ src/modules/{module-name}/
 ├── {module-name}.service.spec.ts    # Service tests
 ├── dto/                             # Request/Response DTOs (Zod)
 ├── interfaces/                      # Internal interfaces
+├── mcp/                             # MCP-specific components (tools, resources)
 └── test/{module-name}.e2e-spec.ts   # E2E tests
 ```
 
@@ -179,6 +319,211 @@ src/modules/{module-name}/
 - `websocket/` - Real-time communication  
 - `cache/` - Redis, in-memory caching
 - `message-broker/` - Queue systems
+
+## 🤖 MCP Module Architecture
+
+**CRITICAL SEPARATION:** MCP components specific to each API module MUST be organized within the module's own directory structure to maintain separation between core MCP infrastructure and module-specific MCP functionality.
+
+### MCP Module Structure
+
+**Module-Specific MCP Components:**
+```
+src/modules/{module-name}/mcp/
+├── {module-name}Http.tool.ts        # HTTP transport tools for this module
+├── {module-name}Sse.tool.ts         # SSE transport tools for this module  
+├── {module-name}Stdio.tool.ts       # STDIO transport tools for this module
+├── {module-name}Http.resource.ts    # HTTP transport resources for this module
+├── {module-name}Sse.resource.ts     # SSE transport resources for this module
+├── {module-name}Stdio.resource.ts   # STDIO transport resources for this module
+├── {module-name}.mcp.spec.ts        # MCP component tests
+└── interfaces/                      # MCP-specific interfaces
+    ├── {module-name}-tool.interface.ts
+    └── {module-name}-resource.interface.ts
+```
+
+### MCP Component Naming Convention
+
+**MANDATORY NAMING PATTERN:**
+- **Tools**: `{moduleName}{Transport}.tool.ts`
+  - Examples: `usersHttp.tool.ts`, `ordersSse.tool.ts`, `productsStdio.tool.ts`
+- **Resources**: `{moduleName}{Transport}.resource.ts`
+  - Examples: `usersHttp.resource.ts`, `ordersSse.resource.ts`, `productsStdio.resource.ts`
+- **Interfaces**: `{module-name}-{component}.interface.ts`
+  - Examples: `users-tool.interface.ts`, `orders-resource.interface.ts`
+
+### MCP Integration Pattern
+
+**Step 1: Create Module MCP Components**
+```bash
+# Create MCP directory structure for your module
+mkdir -p src/modules/{module-name}/mcp/interfaces
+
+# Create transport-specific tool files
+touch src/modules/{module-name}/mcp/{module-name}Http.tool.ts
+touch src/modules/{module-name}/mcp/{module-name}Sse.tool.ts
+touch src/modules/{module-name}/mcp/{module-name}Stdio.tool.ts
+
+# Create transport-specific resource files
+touch src/modules/{module-name}/mcp/{module-name}Http.resource.ts
+touch src/modules/{module-name}/mcp/{module-name}Sse.resource.ts
+touch src/modules/{module-name}/mcp/{module-name}Stdio.resource.ts
+```
+
+**Step 2: Implement Module MCP Tools**
+```typescript
+// src/modules/users/mcp/usersHttp.tool.ts
+export class UsersHttpTool {
+  constructor(private readonly usersService: UsersService) {}
+
+  async getToolsList(): Promise<McpTool[]> {
+    return [
+      {
+        name: 'get_users_list',
+        description: 'Retrieve a list of users with optional filtering',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            page: { type: 'number', description: 'Page number' },
+            limit: { type: 'number', description: 'Items per page' },
+            search: { type: 'string', description: 'Search term' },
+          },
+        },
+      },
+      {
+        name: 'create_user',
+        description: 'Create a new user account',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'User full name' },
+            email: { type: 'string', format: 'email', description: 'User email' },
+          },
+          required: ['name', 'email'],
+        },
+      },
+    ];
+  }
+
+  async handleToolCall(toolName: string, args: unknown): Promise<McpToolResult> {
+    switch (toolName) {
+      case 'get_users_list':
+        return await this.handleGetUsersList(args);
+      case 'create_user':
+        return await this.handleCreateUser(args);
+      default:
+        throw new Error(`Unknown tool: ${toolName}`);
+    }
+  }
+
+  private async handleGetUsersList(args: unknown): Promise<McpToolResult> {
+    const users = await this.usersService.findAll(args);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(users, null, 2) }],
+    };
+  }
+
+  private async handleCreateUser(args: unknown): Promise<McpToolResult> {
+    const newUser = await this.usersService.create(args);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(newUser, null, 2) }],
+    };
+  }
+}
+```
+
+**Step 3: Inject into Transport Dependencies**
+```typescript
+// src/infrastructure/mcp/transports/transport-dependencies.ts
+export interface TransportDependencies {
+  healthService: HealthService;
+  // Add module services
+  usersService?: UsersService;
+  ordersService?: OrdersService;
+  // Add module MCP tools
+  usersHttpTool?: UsersHttpTool;
+  usersStdioTool?: UsersStdioTool;
+  ordersSseTool?: OrdersSseTool;
+}
+
+export function createTransportDependencies(deps: {
+  healthService: HealthService;
+  usersService?: UsersService;
+  ordersService?: OrdersService;
+}): TransportDependencies {
+  const dependencies: TransportDependencies = {
+    healthService: deps.healthService,
+    usersService: deps.usersService,
+    ordersService: deps.ordersService,
+  };
+
+  // Create module MCP tools if services are available
+  if (deps.usersService) {
+    dependencies.usersHttpTool = new UsersHttpTool(deps.usersService);
+    dependencies.usersStdioTool = new UsersStdioTool(deps.usersService);
+  }
+
+  if (deps.ordersService) {
+    dependencies.ordersSseTool = new OrdersSseTool(deps.ordersService);
+  }
+
+  return dependencies;
+}
+```
+
+**Step 4: Register in Transport Handlers**
+```typescript
+// src/infrastructure/mcp/transports/http-transport.ts
+private async handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): Promise<void> {
+  const params = req.params as { name?: string; arguments?: unknown };
+  const toolName = params?.name;
+  
+  // Core tools
+  if (toolName === 'get_api_health') {
+    // Handle core health tool
+    return;
+  }
+  
+  // Module-specific tools
+  if (this.dependencies.usersHttpTool && toolName?.startsWith('get_users_') || toolName?.startsWith('create_user')) {
+    const result = await this.dependencies.usersHttpTool.handleToolCall(toolName, params?.arguments);
+    transport.send({
+      jsonrpc: '2.0',
+      id: req.id,
+      result,
+    });
+    return;
+  }
+  
+  // Unknown tool
+  transport.send({
+    jsonrpc: '2.0',
+    id: req.id,
+    error: { code: -32601, message: `Unknown tool: ${toolName}` },
+  });
+}
+```
+
+### MCP Module Benefits
+
+1. **🔒 Separation of Concerns**: Module MCP components are isolated from core infrastructure
+2. **📦 Module Portability**: MCP tools and resources move with the module
+3. **🔄 Independent Updates**: Core MCP infrastructure updates don't affect module components
+4. **🧪 Isolated Testing**: Module MCP components can be tested independently
+5. **🚀 Scalability**: Easy to add new modules with their own MCP components
+
+### MCP Development Rules
+
+**✅ ALLOWED in `src/modules/{module-name}/mcp/`:**
+- Create transport-specific tools and resources
+- Implement module-specific MCP logic
+- Add module MCP tests and interfaces
+- Use module services for business logic delegation
+
+**❌ FORBIDDEN:**
+- Modifying core MCP infrastructure in `src/infrastructure/mcp/`
+- Adding module-specific logic to core transport files
+- Bypassing the dependency injection pattern
+- Implementing business logic directly in MCP components (must delegate to services)
 ## Implementation Patterns
 
 **NOTE:** These patterns apply AFTER completing the mandatory bootstrap process described at the top of this document.
@@ -2118,25 +2463,33 @@ describe('MCP E2E Tests', () => {
 - [ ] Service: Interfaces only, child logger setup, `ContextUtil` usage
 - [ ] Module: Import infrastructure modules (DatabaseModule, etc.)
 
+**Infrastructure Extensions (IF NEEDED):**
+- [ ] **JUSTIFY EXTENSION**: Document why existing infrastructure is insufficient for module requirements
+- [ ] **NEW SERVICE CREATION**: Create new infrastructure service in `src/infrastructure/{service-name}/`
+- [ ] **FOLLOW PATTERNS**: Implement service with ContextLoggerService, proper error handling, and Zod configuration
+- [ ] **CONFIGURATION**: Add service configuration schema and environment variables
+- [ ] **MODULE INTEGRATION**: Create dedicated NestJS module for the infrastructure service
+- [ ] **APP MODULE**: Import new infrastructure module in main AppModule
+- [ ] **TESTING**: Add unit and integration tests for new infrastructure service
+- [ ] **DOCUMENTATION**: Update README and steering with new service documentation
+- [ ] **EXAMPLES**: MQTT for messaging, Redis for caching, Elasticsearch for search, etc.
+
 **MCP Integration (MANDATORY):**
 - [ ] **MANDATORY IMPLEMENTATION**: MCP tools MUST be implemented for HTTP transport (default)
 - [ ] **SSE ONLY IF REQUESTED**: Implement SSE transport only when explicitly requested
 - [ ] **ONE TOOL PER ENDPOINT**: Each API endpoint MUST have corresponding MCP tool implemented
 - [ ] **TOOL NAMING**: Follow `{action}_{module}_{entity}` pattern (snake_case)
-- [ ] Add service to `TransportDependencies` interface in `transport-dependencies.ts`
-- [ ] Update `createTransportDependencies` function to include new service
-- [ ] Inject service in `McpServerService` constructor
-- [ ] Pass service to `createTransportDependencies` call in `startMcpServer`
-- [ ] Define one MCP tool per endpoint/intention with clear snake_case naming
-- [ ] Add tool cases to `setupToolHandlers` switch statement
-- [ ] Implement handler methods that delegate to service methods (no direct logic)
-- [ ] Add comprehensive tool descriptions to `ListToolsRequestSchema` handler
-- [ ] Ensure HTTP and SSE transports can access service via dependencies
-- [ ] Test all MCP tools with HTTP transport (primary)
-- [ ] Test basic connectivity with SSE transport (secondary)
-- [ ] Test STDIO transport if command-line integration needed
-- [ ] Add MCP E2E tests for all new tools
-- [ ] Update MCP documentation with new tools and examples
+- [ ] **MODULE MCP STRUCTURE**: Create `src/modules/{module-name}/mcp/` directory
+- [ ] **TRANSPORT FILES**: Create `{moduleName}Http.tool.ts`, `{moduleName}Sse.tool.ts`, `{moduleName}Stdio.tool.ts`
+- [ ] **RESOURCE FILES**: Create `{moduleName}Http.resource.ts`, `{moduleName}Sse.resource.ts`, `{moduleName}Stdio.resource.ts`
+- [ ] **MCP INTERFACES**: Create MCP-specific interfaces in `src/modules/{module-name}/mcp/interfaces/`
+- [ ] **SERVICE DELEGATION**: MCP tools MUST delegate to existing service methods (no direct business logic)
+- [ ] **DEPENDENCY INJECTION**: Add module MCP tools to `TransportDependencies` interface
+- [ ] **TRANSPORT INTEGRATION**: Update `createTransportDependencies` to instantiate module MCP tools
+- [ ] **HANDLER REGISTRATION**: Register module tools in transport `handleToolsCall` methods
+- [ ] **COMPREHENSIVE TESTING**: Add MCP component tests in `{module-name}.mcp.spec.ts`
+- [ ] **E2E TESTING**: Test all MCP tools across HTTP/SSE/STDIO transports
+- [ ] **DOCUMENTATION**: Document module MCP tools with input/output examples
 
 **Code Quality:**
 - [ ] ESLint configuration applied with all production-ready rules
