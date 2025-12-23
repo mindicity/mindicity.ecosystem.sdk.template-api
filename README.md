@@ -118,6 +118,7 @@ src/modules/template/
 - ✅ Global exception handling
 - ✅ Request/response interceptors
 - ✅ Comprehensive test coverage
+- ✅ MCP Server with HTTP/SSE/STDIO transports for AI agent connectivity
 
 ## 🎯 Bootstrap New Project
 
@@ -136,7 +137,8 @@ This will:
 2. Rename the template module to your project name
 3. Update all references and configurations
 4. Install dependencies and verify the setup
-5. Provide next steps for development
+5. Configure MCP server integration for AI agent connectivity
+6. Provide next steps for development
 
 ### Manual Setup
 
@@ -1052,6 +1054,51 @@ services:
 - **ADR-003**: Validation approach
 
 ## 🏗 Architecture
+
+### 🏗️ Core Template vs API Modules Architecture
+
+**CRITICAL SEPARATION:** The template is designed with a clear separation between core infrastructure and API modules to enable seamless template updates without conflicts.
+
+#### Core Template (Infrastructure - DO NOT MODIFY)
+
+Everything outside `src/modules/` is **CORE infrastructure** that should not be modified:
+
+```
+├── src/
+│   ├── common/                    # 🔒 CORE: Shared utilities, services, interceptors
+│   ├── config/                    # 🔒 CORE: Configuration schemas and validation
+│   ├── infrastructure/            # 🔒 CORE: Database, MCP, external services
+│   ├── app.module.ts             # 🔒 CORE: Main application module
+│   ├── main.ts                   # 🔒 CORE: Application bootstrap
+│   └── modules/                  # ✅ API MODULES: Your business logic here
+├── test/                         # 🔒 CORE: E2E test infrastructure
+├── scripts/                      # 🔒 CORE: Utility scripts
+├── docs/                         # 🔒 CORE: Template documentation
+├── .kiro/                        # 🔒 CORE: Steering documents
+└── configuration files           # 🔒 CORE: package.json, tsconfig.json, etc.
+```
+
+#### API Modules (Your Development Area)
+
+All API-specific features **MUST** be contained within `src/modules/{module-name}/`:
+
+```
+src/modules/{your-api-name}/
+├── {api-name}.module.ts          # ✅ YOUR MODULE: NestJS module definition
+├── {api-name}.controller.ts      # ✅ YOUR MODULE: HTTP endpoints
+├── {api-name}.service.ts         # ✅ YOUR MODULE: Business logic
+├── dto/                          # ✅ YOUR MODULE: Request/Response DTOs
+├── interfaces/                   # ✅ YOUR MODULE: Internal interfaces
+├── entities/                     # ✅ YOUR MODULE: Database entities
+└── test/                         # ✅ YOUR MODULE: E2E tests
+```
+
+#### Benefits
+
+- **🔄 Template Updates:** Core infrastructure can be updated without affecting your API modules
+- **🔒 Conflict Prevention:** No merge conflicts when updating template versions
+- **📦 Module Isolation:** Each API module is self-contained and portable
+- **🧪 Independent Testing:** Module tests are isolated from core infrastructure tests
 
 ### Configuration Management
 

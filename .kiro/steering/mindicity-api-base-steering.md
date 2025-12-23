@@ -46,12 +46,13 @@ nest generate service modules/your-api-name --no-spec
 - ✅ **Documentation:** Swagger, JSDoc, and README templates
 - ✅ **CI/CD Ready:** GitLab CI, linting, formatting, and quality gates
 - ✅ **Security Baseline:** Gateway auth pattern, no hardcoded secrets
+- ✅ **MCP Server Integration:** Pre-configured Model Context Protocol server with HTTP/SSE/STDIO transports for AI agent connectivity
 
 **⚠️ VIOLATION POLICY:** Projects not following this bootstrap process will be rejected in code review.
 
 ## Tech Stack & Architecture
 
-**Stack:** Node.js + NestJS + Fastify + Pino + Zod + TypeScript (strict mode)
+**Stack:** Node.js + NestJS + Fastify + Pino + Zod + MCP + TypeScript (strict mode)
 
 **Key Requirements:**
 - Project name defines `APP_API_SCOPE_PREFIX` 
@@ -59,6 +60,94 @@ nest generate service modules/your-api-name --no-spec
 - Gateway-level authentication (no auth guards in endpoints)
 - Context-aware logging with correlation IDs
 - Infrastructure isolation in `src/infrastructure/`
+
+## 🏗️ Core Template vs API Modules Architecture
+
+**CRITICAL SEPARATION:** The template architecture is designed with a clear separation between core infrastructure and API modules to enable seamless template updates without conflicts.
+
+### Core Template (DO NOT MODIFY)
+
+**Everything outside `src/modules/` is CORE infrastructure:**
+
+```
+├── src/
+│   ├── common/                    # 🔒 CORE: Shared utilities, services, interceptors
+│   ├── config/                    # 🔒 CORE: Configuration schemas and validation
+│   ├── infrastructure/            # 🔒 CORE: Database, MCP, external services
+│   ├── app.module.ts             # 🔒 CORE: Main application module
+│   ├── main.ts                   # 🔒 CORE: Application bootstrap
+│   └── modules/                  # ✅ API MODULES: Your business logic here
+├── test/                         # 🔒 CORE: E2E test infrastructure
+├── scripts/                      # 🔒 CORE: Utility scripts
+├── docs/                         # 🔒 CORE: Template documentation
+├── .kiro/                        # 🔒 CORE: Steering documents
+├── package.json                  # 🔒 CORE: Dependencies and scripts
+├── tsconfig.json                 # 🔒 CORE: TypeScript configuration
+├── jest.config.js                # 🔒 CORE: Test configuration
+├── eslint.config.js              # 🔒 CORE: Linting rules
+├── Dockerfile                    # 🔒 CORE: Container configuration
+└── README.md                     # 🔒 CORE: Template documentation
+```
+
+### API Modules (YOUR DEVELOPMENT AREA)
+
+**All API-specific features MUST be contained within `src/modules/{module-name}/`:**
+
+```
+src/modules/{your-api-name}/
+├── {api-name}.module.ts          # ✅ YOUR MODULE: NestJS module definition
+├── {api-name}.controller.ts      # ✅ YOUR MODULE: HTTP endpoints
+├── {api-name}.service.ts         # ✅ YOUR MODULE: Business logic
+├── {api-name}.controller.spec.ts # ✅ YOUR MODULE: Controller tests
+├── {api-name}.service.spec.ts    # ✅ YOUR MODULE: Service tests
+├── dto/                          # ✅ YOUR MODULE: Request/Response DTOs
+├── interfaces/                   # ✅ YOUR MODULE: Internal interfaces
+├── entities/                     # ✅ YOUR MODULE: Database entities
+├── repositories/                 # ✅ YOUR MODULE: Data access layer
+└── test/                         # ✅ YOUR MODULE: E2E tests
+```
+
+### Benefits of This Architecture
+
+1. **🔄 Template Updates:** Core infrastructure can be updated without affecting your API modules
+2. **🔒 Conflict Prevention:** No merge conflicts when updating template versions
+3. **📦 Module Isolation:** Each API module is self-contained and portable
+4. **🧪 Independent Testing:** Module tests are isolated from core infrastructure tests
+5. **🚀 Easy Migration:** Modules can be moved between projects with minimal changes
+
+### Development Rules
+
+**✅ ALLOWED in `src/modules/{module-name}/`:**
+- Add new controllers, services, DTOs, interfaces
+- Create module-specific business logic
+- Add module-specific tests and documentation
+- Import and use core infrastructure services
+- Add module-specific configuration (via environment variables)
+
+**❌ FORBIDDEN outside `src/modules/`:**
+- Modifying core infrastructure files
+- Adding business logic to common utilities
+- Changing core configuration schemas
+- Modifying main application bootstrap
+- Altering core test infrastructure
+
+### Template Update Process
+
+When a new template version is released:
+
+1. **Core Update:** Only files outside `src/modules/` are updated
+2. **Module Preservation:** Your `src/modules/{module-name}/` folders remain untouched
+3. **Automatic Merge:** Git merge handles the separation cleanly
+4. **Conflict-Free:** No manual conflict resolution needed for module code
+
+**Example Update Command:**
+```bash
+# Update template core while preserving your modules
+git remote add template <template-repository-url>
+git fetch template
+git merge template/main --allow-unrelated-histories
+# Only core files are updated, your modules remain intact
+```
 
 ## Core Architecture Rules
 

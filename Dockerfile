@@ -32,6 +32,6 @@ RUN chown -R 1000:1000 /app
 
 USER 1000
 
-EXPOSE 3232
+EXPOSE 3232 3235
 
 CMD ["node", "dist/main.js"]

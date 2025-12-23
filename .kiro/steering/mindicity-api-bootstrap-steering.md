@@ -10,6 +10,41 @@ inclusion: always
 
 This is a template-based NestJS API project that serves as the foundation for all Mindicity APIs. When creating new API projects, the AI assistant must rename the template module to match the new API's purpose while preserving all architectural patterns and infrastructure.
 
+## 🏗️ CRITICAL: Core vs Module Separation
+
+**FUNDAMENTAL PRINCIPLE**: The template architecture maintains a strict separation between core infrastructure and API modules.
+
+### What Gets Modified During Bootstrap
+
+**✅ ONLY THESE AREAS ARE MODIFIED:**
+- `src/modules/template/` → `src/modules/{api_name}/` (rename and update content)
+- `test/template.e2e-spec.ts` → `test/{api_name}.e2e-spec.ts` (rename and update)
+- `package.json` (name, description, keywords only)
+- `src/app.module.ts` (import statement for new module only)
+- `src/config/routes.config.ts` (route constant only)
+- `README.md` (project-specific information only)
+- `.env.example` (project-specific prefixes only)
+
+**🔒 CORE INFRASTRUCTURE REMAINS UNTOUCHED:**
+- `src/common/` - Shared utilities and services
+- `src/config/` - Configuration schemas (except routes.config.ts)
+- `src/infrastructure/` - Database, MCP, external services
+- `src/main.ts` - Application bootstrap
+- `test/setup.ts` - Test infrastructure
+- `scripts/` - Utility scripts
+- `docs/` - Core documentation
+- `.kiro/steering/` - Steering documents
+- All configuration files (tsconfig.json, jest.config.js, etc.)
+
+### Benefits of This Separation
+
+1. **🔄 Future Template Updates**: Core infrastructure can be updated without affecting your API modules
+2. **🔒 Conflict Prevention**: No merge conflicts when updating template versions
+3. **📦 Module Portability**: API modules can be moved between projects easily
+4. **🧪 Isolated Testing**: Module tests don't interfere with core infrastructure tests
+
+**IMPORTANT**: This separation ensures that when the template is updated with new features, security patches, or improvements, your API modules remain completely unaffected.
+
 ## Template Repository
 
 **MANDATORY**: The template MUST be cloned from the official Mindicity template repository:
