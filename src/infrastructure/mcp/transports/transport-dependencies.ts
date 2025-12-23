@@ -164,7 +164,6 @@ export function validateTransportDependencies(
   }
 
   // SSE transport no longer requires dependencies since it's simplified
-  // STDIO transport doesn't require dependencies
 
   // Future transport-specific validation can be added here
   // For example:

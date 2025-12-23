@@ -84,7 +84,7 @@ describe('Main.ts Integration Tests', () => {
       const appConfig = configService.get('app');
       
       const swaggerConfigBuilder = new DocumentBuilder()
-        .setTitle('NestJS Hello API')
+        .setTitle('NestJS API')
         .setDescription('Production-ready NestJS API with Fastify and Pino')
         .setVersion(process.env.npm_package_version ?? '1.0.0')
         .addServer(`${appConfig.swaggerHostname}`, 'API Server');
@@ -108,7 +108,7 @@ describe('Main.ts Integration Tests', () => {
 
       const swaggerConfig = swaggerConfigBuilder.build();
 
-      expect(swaggerConfig.info.title).toBe('NestJS Hello API');
+      expect(swaggerConfig.info.title).toBe('NestJS API');
       expect(swaggerConfig.info.description).toBe('Production-ready NestJS API with Fastify and Pino');
       expect(swaggerConfig.info.version).toBe('1.0.0');
       expect(swaggerConfig.servers).toEqual([
@@ -257,12 +257,12 @@ describe('Main.ts Integration Tests', () => {
       const docsPath = `${apiPrefix}/docs/swagger/ui`;
 
       const swaggerOptions = {
-        customSiteTitle: 'NestJS Hello API Documentation',
+        customSiteTitle: 'NestJS API Documentation',
         customCss: '.swagger-ui .topbar { display: none }',
         jsonDocumentUrl: `${docsPath.replace('/ui', '/specs')}`,
       };
 
-      expect(swaggerOptions.customSiteTitle).toBe('NestJS Hello API Documentation');
+      expect(swaggerOptions.customSiteTitle).toBe('NestJS API Documentation');
       expect(swaggerOptions.customCss).toBe('.swagger-ui .topbar { display: none }');
       expect(swaggerOptions.jsonDocumentUrl).toBe('/mcapi/docs/swagger/specs');
     });

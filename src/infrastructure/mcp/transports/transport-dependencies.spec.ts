@@ -102,12 +102,6 @@ describe('TransportDependencies', () => {
       }).not.toThrow();
     });
 
-    it('should not require healthService for STDIO transport', () => {
-      expect(() => {
-        validateTransportDependencies('stdio', {});
-      }).not.toThrow();
-    });
-
     it('should throw error for HTTP transport without healthService', () => {
       expect(() => {
         validateTransportDependencies('http', {});
@@ -123,12 +117,6 @@ describe('TransportDependencies', () => {
     it('should handle undefined dependencies for SSE (allowed)', () => {
       expect(() => {
         validateTransportDependencies('sse', undefined);
-      }).not.toThrow();
-    });
-
-    it('should handle undefined dependencies for STDIO', () => {
-      expect(() => {
-        validateTransportDependencies('stdio', undefined);
       }).not.toThrow();
     });
 

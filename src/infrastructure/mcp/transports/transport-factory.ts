@@ -1,7 +1,6 @@
 import { McpTransport, TransportConfig } from './base-transport';
 import { HttpTransport } from './http-transport';
 import { SseTransport } from './sse-transport';
-import { StdioTransport } from './stdio-transport';
 import { OptionalTransportDependencies, validateTransportDependencies } from './transport-dependencies';
 
 /**
@@ -38,9 +37,6 @@ export class TransportFactory {
     validateTransportDependencies(config.transport, dependencies);
 
     switch (config.transport) {
-      case 'stdio':
-        return new StdioTransport(config);
-      
       case 'http':
         if (!config.port || !config.host) {
           throw new Error('HTTP transport requires port and host configuration');
@@ -66,7 +62,7 @@ export class TransportFactory {
    * @returns Array of supported transport type names
    */
   static getSupportedTransports(): string[] {
-    return ['stdio', 'http', 'sse'];
+    return ['http', 'sse'];
   }
 
   /**

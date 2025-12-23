@@ -70,7 +70,7 @@ describe('McpConfig', () => {
   });
 
   it('should support all valid transport types', () => {
-    const validTransports = ['stdio', 'http', 'sse'];
+    const validTransports = ['http', 'sse'];
     
     validTransports.forEach(transport => {
       process.env.MCP_TRANSPORT = transport;

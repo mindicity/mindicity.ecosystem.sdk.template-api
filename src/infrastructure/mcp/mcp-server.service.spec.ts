@@ -1,3 +1,4 @@
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 
@@ -288,35 +289,18 @@ describe('McpServerService', () => {
   });
 
   describe('tool handlers', () => {
-    it('should handle get_api_health tool', async () => {
-      const result = await (service as any).handleGetApiHealth();
+    it('should handle get_api_health tool by delegating to HTTP tool', async () => {
+      const result = await (service as any).handleDynamicToolCall('get_api_health', {});
 
       expect(result).toHaveProperty('content');
       expect(result.content).toHaveLength(1);
       expect(result.content[0]).toHaveProperty('type', 'text');
       
-      const mcpResponse = JSON.parse(result.content[0].text);
-      expect(mcpResponse).toHaveProperty('tool', 'get_api_health');
-      expect(mcpResponse).toHaveProperty('description');
-      expect(mcpResponse).toHaveProperty('timestamp');
-      expect(mcpResponse).toHaveProperty('data');
-      expect(mcpResponse).toHaveProperty('usage');
-      
-      // Check the nested health data
-      const healthStatus = mcpResponse.data;
-      expect(healthStatus).toHaveProperty('status', 'healthy');
-      expect(healthStatus).toHaveProperty('timestamp');
-      expect(healthStatus).toHaveProperty('uptime');
-      expect(healthStatus).toHaveProperty('memory');
-      expect(healthStatus.memory).toHaveProperty('heapUsed');
-      expect(healthStatus.memory).toHaveProperty('heapTotal');
-      expect(healthStatus.memory).toHaveProperty('rss');
-      
-      // Check MCP-specific metadata
-      expect(mcpResponse.usage).toHaveProperty('purpose');
-      expect(mcpResponse.usage).toHaveProperty('interpretation');
-      expect(mcpResponse.usage).toHaveProperty('nextSteps');
-      expect(Array.isArray(mcpResponse.usage.nextSteps)).toBe(true);
+      const healthData = JSON.parse(result.content[0].text);
+      expect(healthData).toHaveProperty('status', 'healthy');
+      expect(healthData).toHaveProperty('timestamp');
+      expect(healthData).toHaveProperty('uptime');
+      expect(healthData).toHaveProperty('memory');
     });
 
     it('should handle get_api_health tool errors', async () => {
@@ -325,18 +309,9 @@ describe('McpServerService', () => {
         throw new Error('Health service unavailable');
       });
 
-      const result = await (service as any).handleGetApiHealth();
-
-      expect(result).toHaveProperty('content');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0]).toHaveProperty('type', 'text');
-      
-      const errorResponse = JSON.parse(result.content[0].text);
-      expect(errorResponse).toHaveProperty('tool', 'get_api_health');
-      expect(errorResponse).toHaveProperty('error', 'Failed to retrieve health status');
-      expect(errorResponse).toHaveProperty('message', 'Health service unavailable');
-      expect(errorResponse).toHaveProperty('timestamp');
-      expect(errorResponse).toHaveProperty('suggestion');
+      expect(() => {
+        (service as any).handleDynamicToolCall('get_api_health', {});
+      }).toThrow('Health service unavailable');
     });
 
     it('should generate dynamic tools correctly', () => {
@@ -347,7 +322,7 @@ describe('McpServerService', () => {
       
       const healthTool = tools.find((tool: any) => tool.name === 'get_api_health');
       expect(healthTool).toBeDefined();
-      expect(healthTool.description).toContain('health and operational status');
+      expect(healthTool.description).toContain('comprehensive health status');
       expect(healthTool.inputSchema).toHaveProperty('type', 'object');
       expect(healthTool.inputSchema).toHaveProperty('properties');
       expect(healthTool.inputSchema).toHaveProperty('required');
@@ -360,11 +335,11 @@ describe('McpServerService', () => {
       expect(Array.isArray(resources)).toBe(true);
       expect(resources.length).toBeGreaterThan(0);
       
-      const swaggerResource = resources.find((resource: any) => resource.uri.includes('swagger'));
-      expect(swaggerResource).toBeDefined();
-      expect(swaggerResource.name).toContain('OpenAPI Specification');
-      expect(swaggerResource.description).toContain('Complete OpenAPI 3.0 specification');
-      expect(swaggerResource.mimeType).toBe('application/json');
+      const openApiResource = resources.find((resource: any) => resource.uri.includes('openapi'));
+      expect(openApiResource).toBeDefined();
+      expect(openApiResource.name).toContain('OpenAPI Specification');
+      expect(openApiResource.description).toContain('Complete OpenAPI 3.0 specification');
+      expect(openApiResource.mimeType).toBe('application/json');
     });
 
     it('should handle dynamic tool calls', () => {
@@ -374,40 +349,17 @@ describe('McpServerService', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0]).toHaveProperty('type', 'text');
       
-      const mcpResponse = JSON.parse(result.content[0].text);
-      expect(mcpResponse).toHaveProperty('tool', 'get_api_health');
-      expect(mcpResponse.data).toHaveProperty('status', 'healthy');
+      const healthData = JSON.parse(result.content[0].text);
+      expect(healthData).toHaveProperty('status', 'healthy');
+      expect(healthData).toHaveProperty('timestamp');
+      expect(healthData).toHaveProperty('uptime');
+      expect(healthData).toHaveProperty('memory');
     });
 
     it('should handle unknown tool calls', () => {
       expect(() => {
         (service as any).handleDynamicToolCall('unknown_tool', {});
       }).toThrow('Unknown tool: unknown_tool');
-    });
-
-    it('should handle API endpoint calls', () => {
-      const result = (service as any).callApiEndpoint('GET', '/mcapi/test/health', {});
-
-      expect(result).toHaveProperty('content');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0]).toHaveProperty('type', 'text');
-      
-      const mcpResponse = JSON.parse(result.content[0].text);
-      expect(mcpResponse).toHaveProperty('tool', 'get_api_health');
-      expect(mcpResponse.data).toHaveProperty('status', 'healthy');
-    });
-
-    it('should handle unknown API endpoints', () => {
-      const result = (service as any).callApiEndpoint('GET', '/unknown/endpoint', {});
-
-      expect(result).toHaveProperty('content');
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0]).toHaveProperty('type', 'text');
-      
-      const errorResponse = JSON.parse(result.content[0].text);
-      expect(errorResponse).toHaveProperty('error', 'Failed to call API endpoint');
-      expect(errorResponse).toHaveProperty('message', 'Endpoint not implemented: /unknown/endpoint');
-      expect(errorResponse).toHaveProperty('endpoint', 'GET /unknown/endpoint');
     });
   });
 
@@ -587,11 +539,11 @@ describe('McpServerService', () => {
     });
 
     it('should handle swagger resource URIs', async () => {
-      const result = await (service as any).handleDynamicResourceRead('swagger://api-docs/test/swagger/specs');
+      const result = await (service as any).handleDynamicResourceRead('doc://openapi/test/specs');
 
       expect(result).toHaveProperty('contents');
       expect(result.contents).toHaveLength(1);
-      expect(result.contents[0]).toHaveProperty('uri', 'swagger://api-docs/test/swagger/specs');
+      expect(result.contents[0]).toHaveProperty('uri', 'doc://openapi/test/specs');
       expect(result.contents[0]).toHaveProperty('mimeType', 'application/json');
       expect(result.contents[0]).toHaveProperty('text');
       
@@ -604,21 +556,18 @@ describe('McpServerService', () => {
       expect(parsedContent).toHaveProperty('info');
     });
 
-    it('should call fetchRealSwaggerResource for swagger URIs', async () => {
-      const fetchSpy = jest.spyOn(service as any, 'fetchRealSwaggerResource').mockResolvedValue({
-        contents: [{
-          uri: 'test://uri',
-          mimeType: 'application/json',
-          text: '{"test": "data"}',
-        }],
-      });
+    it('should delegate to health module resources for swagger URIs', async () => {
+      const result = await (service as any).handleDynamicResourceRead('doc://openapi/test/specs');
 
-      const result = await (service as any).handleDynamicResourceRead('swagger://api-docs/test/swagger/specs');
-
-      expect(fetchSpy).toHaveBeenCalledWith('swagger://api-docs/test/swagger/specs');
-      expect(result.contents[0].text).toBe('{"test": "data"}');
+      expect(result).toHaveProperty('contents');
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0]).toHaveProperty('uri', 'doc://openapi/test/specs');
+      expect(result.contents[0]).toHaveProperty('mimeType', 'application/json');
+      expect(result.contents[0]).toHaveProperty('text');
       
-      fetchSpy.mockRestore();
+      const parsedContent = JSON.parse(result.contents[0].text!);
+      expect(parsedContent).toHaveProperty('openapi', '3.0.0');
+      expect(parsedContent.info).toHaveProperty('title', 'NestJS API');
     });
   });
 
@@ -715,7 +664,7 @@ describe('McpServerService', () => {
     it('should handle resources/read requests', async () => {
       const mockRequest = {
         params: {
-          uri: 'swagger://api-docs/test/swagger/specs',
+          uri: 'doc://openapi/test/specs',
         },
       };
 
@@ -723,331 +672,8 @@ describe('McpServerService', () => {
 
       expect(result).toHaveProperty('contents');
       expect(loggerService.trace).toHaveBeenCalledWith('MCP resource read requested', {
-        uri: 'swagger://api-docs/test/swagger/specs',
+        uri: 'doc://openapi/test/specs',
       });
-    });
-  });
-
-  describe('fetchRealSwaggerResource', () => {
-    beforeEach(() => {
-      // Reset all mocks before each test
-      jest.resetModules();
-      jest.clearAllMocks();
-    });
-
-    it('should handle errors during swagger resource fetch', async () => {
-      const fetchError = new Error('File system error');
-      
-      // Spy on the service method and make it throw an error
-      const originalMethod = (service as any).fetchRealSwaggerResource;
-      jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
-        await Promise.resolve(); // Add await expression
-        const uri = args[0] as string;
-        // Call the logger.error to simulate the error path
-        (service as any).logger.error('Error fetching real Swagger resource', { 
-          uri, 
-          err: fetchError 
-        });
-        
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'text/plain',
-              text: `Error fetching Swagger documentation: ${fetchError.message}`,
-            },
-          ],
-        };
-      });
-
-      const uri = 'swagger://api-docs/test/swagger/specs';
-      const result = await (service as any).fetchRealSwaggerResource(uri);
-
-      expect(result).toHaveProperty('contents');
-      expect(result.contents).toHaveLength(1);
-      expect(result.contents[0]).toHaveProperty('uri', uri);
-      expect(result.contents[0]).toHaveProperty('mimeType', 'text/plain');
-      expect(result.contents[0].text).toContain('Error fetching Swagger documentation: File system error');
-
-      expect(loggerService.error).toHaveBeenCalledWith(
-        'Error fetching real Swagger resource',
-        { uri, err: fetchError }
-      );
-
-      // Restore original method
-      (service as any).fetchRealSwaggerResource = originalMethod;
-    });
-
-    it('should handle non-Error exceptions during swagger resource fetch', async () => {
-      const nonErrorException = 'String error';
-      
-      // Spy on the service method and make it throw a non-Error exception
-      const originalMethod = (service as any).fetchRealSwaggerResource;
-      jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
-        await Promise.resolve(); // Add await expression
-        const uri = args[0] as string;
-        // Call the logger.error to simulate the error path
-        (service as any).logger.error('Error fetching real Swagger resource', { 
-          uri, 
-          err: nonErrorException 
-        });
-        
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'text/plain',
-              text: 'Error fetching Swagger documentation: Unknown error',
-            },
-          ],
-        };
-      });
-
-      const uri = 'swagger://api-docs/test/swagger/specs';
-      const result = await (service as any).fetchRealSwaggerResource(uri);
-
-      expect(result.contents[0].text).toContain('Error fetching Swagger documentation: Unknown error');
-
-      // Restore original method
-      (service as any).fetchRealSwaggerResource = originalMethod;
-    });
-
-    it('should generate minimal spec when file does not exist', async () => {
-      // Mock the service method to simulate file not found scenario
-      const originalMethod = (service as any).fetchRealSwaggerResource;
-      jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
-        await Promise.resolve(); // Add await expression
-        const uri = args[0] as string;
-        // Simulate the warn log for file not found using the service's logger
-        (service as any).logger.warn('OpenAPI file not found, generating minimal specification', { 
-          expectedPath: '/mock/path/openapi.json' 
-        });
-        
-        const appConfig = (service as any).configService.get('app');
-        const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
-        const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
-        const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
-        
-        const minimalSpec = {
-          openapi: '3.0.0',
-          info: {
-            title: (service as any).mcpConfig.serverName,
-            version: (service as any).mcpConfig.serverVersion,
-            description: 'API specification - full documentation available via Swagger UI',
-          },
-          servers: [
-            {
-              url: `${swaggerHostname}${apiPrefix}`,
-              description: 'API Server',
-            },
-          ],
-          paths: {},
-          components: {},
-          note: `Complete API documentation with all endpoints is available at: ${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`,
-        };
-
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify(minimalSpec, null, 2),
-            },
-          ],
-        };
-      });
-
-      const uri = 'swagger://api-docs/test/swagger/specs';
-      const result = await (service as any).fetchRealSwaggerResource(uri);
-
-      expect(result).toHaveProperty('contents');
-      expect(result.contents).toHaveLength(1);
-      expect(result.contents[0]).toHaveProperty('uri', uri);
-      expect(result.contents[0]).toHaveProperty('mimeType', 'application/json');
-      
-      const parsedContent = JSON.parse(result.contents[0].text);
-      expect(parsedContent).toHaveProperty('openapi', '3.0.0');
-      expect(parsedContent).toHaveProperty('info');
-      expect(parsedContent.info).toHaveProperty('title', mockMcpConfig.serverName);
-      expect(parsedContent.info).toHaveProperty('version', mockMcpConfig.serverVersion);
-      expect(parsedContent).toHaveProperty('servers');
-      expect(parsedContent.servers[0]).toHaveProperty('url', 'http://localhost:3232/mcapi');
-      expect(parsedContent).toHaveProperty('note');
-      expect(parsedContent.note).toContain('Complete API documentation');
-
-      expect(loggerService.warn).toHaveBeenCalledWith(
-        'OpenAPI file not found, generating minimal specification',
-        expect.objectContaining({ expectedPath: '/mock/path/openapi.json' })
-      );
-
-      // Restore original method
-      (service as any).fetchRealSwaggerResource = originalMethod;
-    });
-
-    it('should handle missing app configuration in minimal spec generation', async () => {
-      // Mock configService to return null for app config
-      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
-        if (key === 'mcp') return mockMcpConfig;
-        if (key === 'app') return null;
-        return null;
-      });
-
-      // Mock the service method to simulate file not found scenario with null app config
-      const originalMethod = (service as any).fetchRealSwaggerResource;
-      jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
-        await Promise.resolve(); // Add await expression
-        const uri = args[0] as string;
-        const appConfig = (service as any).configService.get('app');
-        const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
-        const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
-        const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
-        
-        const minimalSpec = {
-          openapi: '3.0.0',
-          info: {
-            title: (service as any).mcpConfig.serverName,
-            version: (service as any).mcpConfig.serverVersion,
-            description: 'API specification - full documentation available via Swagger UI',
-          },
-          servers: [
-            {
-              url: `${swaggerHostname}${apiPrefix}`,
-              description: 'API Server',
-            },
-          ],
-          paths: {},
-          components: {},
-          note: `Complete API documentation with all endpoints is available at: ${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`,
-        };
-
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify(minimalSpec, null, 2),
-            },
-          ],
-        };
-      });
-
-      const uri = 'swagger://api-docs/test/swagger/specs';
-      const result = await (service as any).fetchRealSwaggerResource(uri);
-
-      const parsedContent = JSON.parse(result.contents[0].text);
-      expect(parsedContent.servers[0]).toHaveProperty('url', 'http://localhost:3232/mcapi');
-      expect(parsedContent.note).toContain('http://localhost:3232/mcapi/docs/swagger/ui');
-
-      // Restore original method
-      (service as any).fetchRealSwaggerResource = originalMethod;
-    });
-
-    it('should use custom app configuration values in minimal spec', async () => {
-      const customAppConfig = {
-        ...mockAppConfig,
-        swaggerHostname: 'https://api.example.com',
-        apiPrefix: '/api/v2',
-        apiScopePrefix: '/custom',
-      };
-
-      jest.spyOn(configService, 'get').mockImplementation((key: string) => {
-        if (key === 'mcp') return mockMcpConfig;
-        if (key === 'app') return customAppConfig;
-        return null;
-      });
-
-      // Mock the service method to simulate file not found scenario with custom app config
-      const originalMethod = (service as any).fetchRealSwaggerResource;
-      jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
-        await Promise.resolve(); // Add await expression
-        const uri = args[0] as string;
-        const appConfig = (service as any).configService.get('app');
-        const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
-        const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
-        const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
-        
-        const minimalSpec = {
-          openapi: '3.0.0',
-          info: {
-            title: (service as any).mcpConfig.serverName,
-            version: (service as any).mcpConfig.serverVersion,
-            description: 'API specification - full documentation available via Swagger UI',
-          },
-          servers: [
-            {
-              url: `${swaggerHostname}${apiPrefix}`,
-              description: 'API Server',
-            },
-          ],
-          paths: {},
-          components: {},
-          note: `Complete API documentation with all endpoints is available at: ${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`,
-        };
-
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify(minimalSpec, null, 2),
-            },
-          ],
-        };
-      });
-
-      const uri = 'swagger://api-docs/test/swagger/specs';
-      const result = await (service as any).fetchRealSwaggerResource(uri);
-
-      const parsedContent = JSON.parse(result.contents[0].text);
-      expect(parsedContent.servers[0]).toHaveProperty('url', 'https://api.example.com/api/v2');
-      expect(parsedContent.note).toContain('https://api.example.com/api/v2/docs/custom/swagger/ui');
-
-      // Restore original method
-      (service as any).fetchRealSwaggerResource = originalMethod;
-    });
-
-    it('should fetch swagger content from file system when file exists', async () => {
-      const mockSwaggerContent = {
-        openapi: '3.0.0',
-        info: { title: 'Test API', version: '1.0.0' },
-        paths: { '/test': { get: { summary: 'Test endpoint' } } },
-      };
-
-      // Mock the service method to simulate file exists scenario
-      const originalMethod = (service as any).fetchRealSwaggerResource;
-      jest.spyOn(service as any, 'fetchRealSwaggerResource').mockImplementation(async (...args: any[]) => {
-        await Promise.resolve(); // Add await expression
-        const uri = args[0] as string;
-        // Simulate the debug log for file found
-        (service as any).logger.debug('Swagger specification loaded from file', { 
-          path: '/mock/path/openapi.json',
-          size: JSON.stringify(mockSwaggerContent).length 
-        });
-        
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify(mockSwaggerContent),
-            },
-          ],
-        };
-      });
-
-      const uri = 'swagger://api-docs/test/swagger/specs';
-      const result = await (service as any).fetchRealSwaggerResource(uri);
-
-      expect(result).toHaveProperty('contents');
-      expect(result.contents).toHaveLength(1);
-      expect(result.contents[0]).toHaveProperty('uri', uri);
-      expect(result.contents[0]).toHaveProperty('mimeType', 'application/json');
-      
-      const parsedContent = JSON.parse(result.contents[0].text);
-      expect(parsedContent).toEqual(mockSwaggerContent);
-
-      // Restore original method
-      (service as any).fetchRealSwaggerResource = originalMethod;
     });
   });
 });

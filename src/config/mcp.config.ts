@@ -14,7 +14,7 @@ const McpConfigSchema = z.object({
   /** Enable MCP server */
   enabled: z.boolean().default(true),
   /** MCP server transport type */
-  transport: z.enum(['stdio', 'http', 'sse']).default('http'),
+  transport: z.enum(['http', 'sse']).default('http'),
   /** MCP server port number (1-65535) - used for HTTP and SSE transports */
   port: z.number().int().min(1, 'MCP port must be at least 1').max(65535, 'MCP port must be at most 65535').default(3235),
   /** MCP server host - used for HTTP and SSE transports */
@@ -51,7 +51,7 @@ export type McpConfig = z.infer<typeof McpConfigSchema>;
  *
  * Environment variables:
  * - MCP_ENABLED: Enable MCP server (default: true)
- * - MCP_TRANSPORT: Transport type - stdio, http, sse (default: http)
+ * - MCP_TRANSPORT: Transport type - http, sse (default: http)
  * - MCP_PORT: MCP server port (default: 3235)
  * - MCP_HOST: MCP server host (default: localhost)
  * - MCP_SERVER_NAME: Server name identifier (default: package.json name or 'mindicity-api-template')
@@ -62,7 +62,7 @@ export default registerAs('mcp', (): McpConfig => {
     enabled: EnvUtil.parseBoolean(process.env.MCP_ENABLED, true),
     transport: EnvUtil.parseEnum(
       process.env.MCP_TRANSPORT, 
-      ['stdio', 'http', 'sse'], 
+      ['http', 'sse'], 
       'http',
       'MCP_TRANSPORT'
     ),

@@ -138,7 +138,7 @@ export async function bootstrap(): Promise<void> {
 
   // Swagger documentation
   const swaggerConfigBuilder = new DocumentBuilder()
-    .setTitle('NestJS Hello API')
+    .setTitle('NestJS API')
     .setDescription('Production-ready NestJS API with Fastify and Pino')
     .setVersion(process.env.npm_package_version ?? '1.0.0')
     .addServer(`${appConfig.swaggerHostname}`, 'API Server');
@@ -167,7 +167,7 @@ export async function bootstrap(): Promise<void> {
   // Serve Swagger UI
   const docsPath = `${apiPrefix}/${ROUTES.DOCS}`;
   SwaggerModule.setup(docsPath, app, document, {
-    customSiteTitle: 'NestJS Hello API Documentation',
+    customSiteTitle: 'NestJS API Documentation',
     customCss: '.swagger-ui .topbar { display: none }',
     jsonDocumentUrl: `${docsPath.replace('/ui', '/specs')}`,
   });
@@ -197,9 +197,6 @@ export async function bootstrap(): Promise<void> {
     const mcpUrls: string[] = [];
 
     switch (mcpConfig.transport) {
-      case 'stdio':
-        transportInfo = 'stdio transport';
-        break;
       case 'http':
         transportInfo = `http transport (${mcpConfig.host}:${mcpConfig.port})`;
         mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);

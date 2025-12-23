@@ -58,22 +58,8 @@ describe('MCP Integration (e2e)', () => {
   });
 
   describe('MCP Tools', () => {
-    it('should provide get_api_info tool functionality', async () => {
-      const result = await (mcpServerService as any).handleGetApiInfo();
-      
-      expect(result).toHaveProperty('content');
-      expect(Array.isArray(result.content)).toBe(true);
-      expect(result.content[0]).toHaveProperty('type', 'text');
-      
-      const apiInfo = JSON.parse(result.content[0].text);
-      expect(apiInfo).toHaveProperty('name');
-      expect(apiInfo).toHaveProperty('version');
-      expect(apiInfo).toHaveProperty('port');
-      expect(apiInfo).toHaveProperty('swaggerUrl');
-    });
-
     it('should provide get_api_health tool functionality', async () => {
-      const result = await (mcpServerService as any).handleGetApiHealth();
+      const result = await (mcpServerService as any).handleDynamicToolCall('get_api_health', {});
       
       expect(result).toHaveProperty('content');
       expect(Array.isArray(result.content)).toBe(true);
@@ -86,35 +72,38 @@ describe('MCP Integration (e2e)', () => {
       expect(healthStatus).toHaveProperty('memory');
     });
 
-    it('should provide list_api_endpoints tool functionality', async () => {
-      const result = await (mcpServerService as any).handleListApiEndpoints();
+    it('should generate dynamic tools correctly', () => {
+      const tools = (mcpServerService as any).generateDynamicTools();
       
-      expect(result).toHaveProperty('content');
-      expect(Array.isArray(result.content)).toBe(true);
-      expect(result.content[0]).toHaveProperty('type', 'text');
+      expect(Array.isArray(tools)).toBe(true);
+      expect(tools.length).toBeGreaterThan(0);
       
-      const endpoints = JSON.parse(result.content[0].text);
-      expect(Array.isArray(endpoints)).toBe(true);
-      expect(endpoints.length).toBeGreaterThan(0);
-      
-      // Check that each endpoint has required properties
-      endpoints.forEach((endpoint: any) => {
-        expect(endpoint).toHaveProperty('method');
-        expect(endpoint).toHaveProperty('path');
-        expect(endpoint).toHaveProperty('description');
-      });
+      const healthTool = tools.find((tool: any) => tool.name === 'get_api_health');
+      expect(healthTool).toBeDefined();
+      expect(healthTool.description).toContain('comprehensive health status');
+      expect(healthTool.inputSchema).toHaveProperty('type', 'object');
+      expect(healthTool.inputSchema).toHaveProperty('properties');
+      expect(healthTool.inputSchema).toHaveProperty('required');
+      expect(Array.isArray(healthTool.inputSchema.required)).toBe(true);
+    });
+
+    it('should handle unknown tool calls', () => {
+      expect(() => {
+        (mcpServerService as any).handleDynamicToolCall('unknown_tool', {});
+      }).toThrow('Unknown tool: unknown_tool');
     });
   });
 
   describe('Configuration Integration', () => {
     it('should integrate with app configuration', async () => {
       const appConfig = configService.get('app');
-      const result = await (mcpServerService as any).handleGetApiInfo();
-      const apiInfo = JSON.parse(result.content[0].text);
+      const mcpConfig = configService.get('mcp');
       
-      expect(apiInfo.port).toBe(appConfig.port);
-      expect(apiInfo.apiPrefix).toBe(appConfig.apiPrefix);
-      expect(apiInfo.swaggerUrl).toContain(appConfig.swaggerHostname);
+      expect(appConfig).toBeDefined();
+      expect(mcpConfig).toBeDefined();
+      expect(mcpConfig.serverName).toBe('test-api');
+      expect(mcpConfig.serverVersion).toBe('1.0.0-test');
+      expect(mcpConfig.enabled).toBe(true);
     });
 
     it('should handle disabled MCP server', async () => {

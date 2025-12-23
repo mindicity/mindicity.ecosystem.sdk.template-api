@@ -99,7 +99,7 @@ describe('Swagger Documentation Property Tests', () => {
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
 
     const config = new DocumentBuilder()
-      .setTitle('NestJS Hello API')
+      .setTitle('NestJS API')
       .setDescription('Production-ready NestJS API with Fastify and Pino')
       .setVersion('1.0.0')
       .addBearerAuth()

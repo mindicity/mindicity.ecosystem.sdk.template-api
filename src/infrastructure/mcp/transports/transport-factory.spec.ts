@@ -2,7 +2,6 @@ import { HealthService } from '../../../modules/health/health.service';
 
 import { HttpTransport } from './http-transport';
 import { SseTransport } from './sse-transport';
-import { StdioTransport } from './stdio-transport';
 import { createTransportDependencies, OptionalTransportDependencies } from './transport-dependencies';
 import { TransportFactory } from './transport-factory';
 
@@ -40,17 +39,6 @@ describe('TransportFactory', () => {
   });
 
   describe('createTransport', () => {
-    it('should create stdio transport', () => {
-      const config = {
-        transport: 'stdio' as const,
-        serverName: 'test-server',
-        serverVersion: '1.0.0',
-      };
-
-      const transport = TransportFactory.createTransport(config);
-      expect(transport).toBeInstanceOf(StdioTransport);
-    });
-
     it('should create http transport with valid config', () => {
       const config = {
         transport: 'http' as const,
@@ -185,21 +173,11 @@ describe('TransportFactory', () => {
   describe('getSupportedTransports', () => {
     it('should return all supported transport types', () => {
       const supported = TransportFactory.getSupportedTransports();
-      expect(supported).toEqual(['stdio', 'http', 'sse']);
+      expect(supported).toEqual(['http', 'sse']);
     });
   });
 
   describe('validateConfig', () => {
-    it('should validate stdio transport config', () => {
-      const config = {
-        transport: 'stdio' as const,
-        serverName: 'test-server',
-        serverVersion: '1.0.0',
-      };
-
-      expect(() => TransportFactory.validateConfig(config)).not.toThrow();
-    });
-
     it('should validate http transport config', () => {
       const config = {
         transport: 'http' as const,
@@ -264,7 +242,9 @@ describe('TransportFactory', () => {
 
     it('should throw error for empty server name', () => {
       const config = {
-        transport: 'stdio' as const,
+        transport: 'http' as const,
+        port: 3233,
+        host: 'localhost',
         serverName: '',
         serverVersion: '1.0.0',
       };
@@ -276,7 +256,9 @@ describe('TransportFactory', () => {
 
     it('should throw error for empty server version', () => {
       const config = {
-        transport: 'stdio' as const,
+        transport: 'http' as const,
+        port: 3233,
+        host: 'localhost',
         serverName: 'test-server',
         serverVersion: '',
       };

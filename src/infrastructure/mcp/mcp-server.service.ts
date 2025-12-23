@@ -2,17 +2,18 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { 
+import { CallToolResult , 
   CallToolRequestSchema, 
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 
+
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 import { McpConfig } from '../../config/mcp.config';
 import { HealthService } from '../../modules/health/health.service';
-import { HealthMcpStdioTool } from '../../modules/health/mcp';
+import { HealthMcpHttpTool, HealthMcpResources } from '../../modules/health/mcp';
 
 import { McpTransport } from './transports/base-transport';
 import { createTransportDependencies } from './transports/transport-dependencies';
@@ -74,7 +75,10 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   private server: Server | null = null;
   private transport: McpTransport | null = null;
   private readonly mcpConfig: McpConfig;
-  private healthMcpStdioTool: HealthMcpStdioTool;
+  private healthMcpHttpTool: HealthMcpHttpTool;
+  // Future MCP tools can be added here:
+  // private userMcpHttpTool: UserMcpHttpTool;
+  // private notificationMcpHttpTool: NotificationMcpHttpTool;
 
   constructor(
     private readonly configService: ConfigService,
@@ -86,7 +90,11 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     this.mcpConfig = this.configService.get<McpConfig>('mcp')!;
     
     // Initialize MCP tools
-    this.healthMcpStdioTool = new HealthMcpStdioTool(this.healthService);
+    this.healthMcpHttpTool = new HealthMcpHttpTool(this.healthService);
+    
+    // Future MCP tools initialization:
+    // this.userMcpHttpTool = new UserMcpHttpTool(this.userService);
+    // this.notificationMcpHttpTool = new NotificationMcpHttpTool(this.notificationService);
   }
 
   /**
@@ -248,7 +256,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Generate dynamic tools based on available API endpoints.
+   * Generate dynamic tools by collecting tool definitions from MCP modules.
    * Each tool represents a specific API operation that AI agents can perform.
    * @private
    */
@@ -261,106 +269,52 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
       required: string[];
     };
   }> {
-    const appConfig = this.configService.get('app');
-    const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
+    const tools = [];
     
-    // Define available API endpoints that become MCP tools
-    // Each tool provides AI agents with a specific capability to interact with the API
-    const apiEndpoints = [
-      {
-        name: 'get_api_health',
-        method: 'GET',
-        path: `${baseUrl}/health`,
-        description: `Check the current health and operational status of the ${this.mcpConfig.serverName} API server. 
-        
-This tool provides comprehensive health information including:
-- Server status (healthy/unhealthy)
-- Current timestamp
-- Server name and version
-- Environment details
-- Uptime information
-- System resource status
+    // Get tool definitions from health module (HTTP transport only)
+    tools.push(...HealthMcpHttpTool.getToolDefinitions());
 
-Use this tool to:
-- Verify the API is operational before making other requests
-- Monitor server health in automated workflows
-- Troubleshoot connectivity issues
-- Get basic server information for debugging
-
-Returns: JSON object with health status, timestamp, server details, and operational metrics.`,
-        inputSchema: {
-          type: 'object',
-          properties: {},
-          required: [],
-        },
-      },
-    ];
-
-    return apiEndpoints.map(endpoint => ({
-      name: endpoint.name,
-      description: endpoint.description,
-      inputSchema: endpoint.inputSchema,
-    }));
+    // Future modules can be added here:
+    // tools.push(...UserMcpTool.getToolDefinitions());
+    // tools.push(...NotificationMcpTool.getToolDefinitions());
+    // tools.push(...AnalyticsMcpTool.getToolDefinitions());
+    
+    return tools;
   }
 
   /**
-   * Handle dynamic tool calls by routing to appropriate API endpoints.
+   * Handle dynamic tool calls by delegating to appropriate MCP tools.
+   * Routes tool calls to the correct module based on tool name patterns.
    * @private
    */
-  private handleDynamicToolCall(toolName: string, args: unknown): {
-    content: Array<{ type: string; text: string }>;
-  } {
-    const appConfig = this.configService.get('app');
-    const baseUrl = `${appConfig?.apiPrefix ?? '/mcapi'}${appConfig?.apiScopePrefix ?? ''}`;
-
-    switch (toolName) {
-      case 'get_api_health':
-        return this.callApiEndpoint('GET', `${baseUrl}/health`, args);
-      
-      default:
-        throw new Error(`Unknown tool: ${toolName}`);
+  private handleDynamicToolCall(toolName: string, args: unknown): CallToolResult {
+    // Health module tools
+    if (toolName.startsWith('get_api_health')) {
+      return this.healthMcpHttpTool.getApiHealth(args as Record<string, unknown>);
     }
+    
+    // Future module tools can be added here:
+    // User module tools
+    // if (toolName.startsWith('get_users_') || toolName.startsWith('create_user') || 
+    //     toolName.startsWith('update_user') || toolName.startsWith('delete_user')) {
+    //   return this.userMcpHttpTool.handleToolCall(toolName, args as Record<string, unknown>);
+    // }
+    
+    // Notification module tools
+    // if (toolName.startsWith('send_notification') || toolName.startsWith('get_notifications_')) {
+    //   return this.notificationMcpHttpTool.handleToolCall(toolName, args as Record<string, unknown>);
+    // }
+    
+    // Analytics module tools
+    // if (toolName.startsWith('get_analytics_') || toolName.startsWith('track_event')) {
+    //   return this.analyticsMcpHttpTool.handleToolCall(toolName, args as Record<string, unknown>);
+    // }
+    
+    throw new Error(`Unknown tool: ${toolName}`);
   }
 
   /**
-   * Make an internal API call to the specified endpoint.
-   * @private
-   */
-  private callApiEndpoint(method: string, path: string, args: unknown): {
-    content: Array<{ type: string; text: string }>;
-  } {
-    try {
-      // For health endpoint, call the health handler directly
-      if (path.includes('/health')) {
-        return this.handleGetApiHealth();
-      } else {
-        throw new Error(`Endpoint not implemented: ${path}`);
-      }
-    } catch (error) {
-      this.logger.error('Error calling API endpoint', { 
-        method, 
-        path, 
-        args, 
-        err: error 
-      });
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              error: 'Failed to call API endpoint',
-              message: error instanceof Error ? error.message : 'Unknown error',
-              endpoint: `${method} ${path}`,
-            }, null, 2),
-          },
-        ],
-      };
-    }
-  }
-
-  /**
-   * Generate dynamic resources based on available API documentation.
+   * Generate dynamic resources by collecting resource definitions from all MCP modules.
    * Resources provide AI agents with access to API specifications and documentation.
    * @private
    */
@@ -370,60 +324,58 @@ Returns: JSON object with health status, timestamp, server details, and operatio
     description: string;
     mimeType: string;
   }> {
-    const appConfig = this.configService.get('app');
-    const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
+    const resources = [];
     
-    // Define available API documentation resources
-    // Resources allow AI agents to understand the complete API structure and capabilities
-    const apiResources = [
-      {
-        uri: `swagger://api-docs${apiScopePrefix}/swagger/specs`,
-        name: 'API OpenAPI Specification',
-        description: `Complete OpenAPI 3.0 specification for the ${this.mcpConfig.serverName} API.
-
-This resource contains the full API documentation including:
-- All available endpoints with HTTP methods and paths
-- Request/response schemas and data models
-- Parameter definitions and validation rules
-- Authentication requirements
-- Error response formats
-- Example requests and responses
-
-Use this resource to:
-- Understand the complete API structure and capabilities
-- Generate proper API requests with correct parameters
-- Validate request/response formats
-- Learn about available endpoints and their purposes
-- Get schema definitions for data models
-
-Format: JSON document following OpenAPI 3.0 specification standard.
-Content: Machine-readable API specification that can be used to generate client code, documentation, or API calls.`,
-        mimeType: 'application/json',
-      },
-    ];
-
-    return apiResources.map(resource => ({
-      uri: resource.uri,
-      name: resource.name,
-      description: resource.description,
-      mimeType: resource.mimeType,
-    }));
+    // Get resource definitions from health module
+    resources.push(...HealthMcpResources.getResourceDefinitions(this.configService));
+    
+    // Future modules can be added here:
+    // resources.push(...UserMcpResources.getResourceDefinitions(this.configService));
+    // resources.push(...NotificationMcpResources.getResourceDefinitions(this.configService));
+    // resources.push(...AnalyticsMcpResources.getResourceDefinitions(this.configService));
+    
+    return resources;
   }
 
   /**
-   * Handle dynamic resource reads by fetching API documentation content.
+   * Handle dynamic resource reads by delegating to appropriate module resources.
+   * Routes resource requests to the correct module based on URI patterns.
    * @private
    */
   private async handleDynamicResourceRead(uri: string): Promise<{
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
   }> {
     try {
-      if (uri.startsWith('swagger://api-docs') && uri.includes('/swagger/specs')) {
-        // Fetch the real Swagger JSON specification from the generated document
-        return await this.fetchRealSwaggerResource(uri);
+      // Route to appropriate module based on URI patterns
+      
+      // Health module resources (openapi specs, health docs)
+      if (uri.startsWith('doc://openapi') && uri.includes('/specs')) {
+        const healthResources = new HealthMcpResources(this.configService);
+        return await healthResources.handleResourceRead(uri);
       }
-
+      
+      // Future module resources can be added here:
+      // User module resources
+      // if (uri.startsWith('user://') || uri.includes('/user/')) {
+      //   const userResources = new UserMcpResources(this.configService);
+      //   return await userResources.handleResourceRead(uri);
+      // }
+      
+      // Notification module resources
+      // if (uri.startsWith('notification://') || uri.includes('/notification/')) {
+      //   const notificationResources = new NotificationMcpResources(this.configService);
+      //   return await notificationResources.handleResourceRead(uri);
+      // }
+      
+      // Analytics module resources
+      // if (uri.startsWith('analytics://') || uri.includes('/analytics/')) {
+      //   const analyticsResources = new AnalyticsMcpResources(this.configService);
+      //   return await analyticsResources.handleResourceRead(uri);
+      // }
+      
+      // If no module matches, return error
       throw new Error(`Unknown resource URI: ${uri}`);
+      
     } catch (error) {
       this.logger.error('Error reading MCP resource', { 
         uri, 
@@ -436,175 +388,6 @@ Content: Machine-readable API specification that can be used to generate client 
             uri,
             mimeType: 'text/plain',
             text: `Error reading resource: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          },
-        ],
-      };
-    }
-  }
-
-  /**
-   * Fetch the real Swagger resource content from the generated OpenAPI document.
-   * @private
-   */
-  private async fetchRealSwaggerResource(uri: string): Promise<{
-    contents: Array<{ uri: string; mimeType: string; text?: string }>;
-  }> {
-    try {
-      // Try to read the exported OpenAPI JSON file first
-      const fs = await import('fs');
-      const path = await import('path');
-      
-      const openApiPath = path.join(process.cwd(), 'docs', 'api', 'openapi.json');
-      
-      if (fs.existsSync(openApiPath)) {
-        const swaggerContent = fs.readFileSync(openApiPath, 'utf8');
-        
-        this.logger.debug('Swagger specification loaded from file', { 
-          path: openApiPath,
-          size: swaggerContent.length 
-        });
-        
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: swaggerContent,
-            },
-          ],
-        };
-      }
-      
-      // Fallback: generate a minimal spec if file doesn't exist
-      this.logger.warn('OpenAPI file not found, generating minimal specification', { 
-        expectedPath: openApiPath 
-      });
-      
-      const appConfig = this.configService.get('app');
-      const swaggerHostname = appConfig?.swaggerHostname ?? 'http://localhost:3232';
-      const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
-      const apiScopePrefix = appConfig?.apiScopePrefix ?? '';
-      
-      const minimalSpec = {
-        openapi: '3.0.0',
-        info: {
-          title: this.mcpConfig.serverName,
-          version: this.mcpConfig.serverVersion,
-          description: 'API specification - full documentation available via Swagger UI',
-        },
-        servers: [
-          {
-            url: `${swaggerHostname}${apiPrefix}`,
-            description: 'API Server',
-          },
-        ],
-        paths: {},
-        components: {},
-        note: `Complete API documentation with all endpoints is available at: ${swaggerHostname}${apiPrefix}/docs${apiScopePrefix}/swagger/ui`,
-      };
-
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'application/json',
-            text: JSON.stringify(minimalSpec, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      this.logger.error('Error fetching real Swagger resource', { 
-        uri, 
-        err: error 
-      });
-      
-      return {
-        contents: [
-          {
-            uri,
-            mimeType: 'text/plain',
-            text: `Error fetching Swagger documentation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          },
-        ],
-      };
-    }
-  }
-
-  /**
-   * Handle get_api_health tool call using the HealthService.
-   * 
-   * This tool provides comprehensive health information about the API server,
-   * including operational status, version info, and system metrics.
-   * 
-   * @private
-   */
-  private handleGetApiHealth(): { content: Array<{ type: string; text: string }> } {
-    try {
-      // Get health data using appropriate tool based on transport type
-      let healthStatus;
-      if (this.mcpConfig.transport === 'stdio') {
-        // Use STDIO tool for consistency, but extract the data
-        const stdioResult = this.healthMcpStdioTool.getApiHealth({});
-        // Handle the content array properly
-        const textContent = stdioResult.content.find(item => item.type === 'text');
-        if (textContent && 'text' in textContent) {
-          healthStatus = JSON.parse(textContent.text);
-        } else {
-          healthStatus = this.healthService.getHealthStatus();
-        }
-      } else {
-        // Direct service call for other transports
-        healthStatus = this.healthService.getHealthStatus();
-      }
-
-      // Add MCP-specific metadata to help AI agents understand the response
-      const mcpResponse = {
-        tool: 'get_api_health',
-        description: 'API server health status and operational information',
-        timestamp: new Date().toISOString(),
-        data: healthStatus,
-        usage: {
-          purpose: 'Monitor API server health and operational status',
-          interpretation: {
-            status: 'healthy = server is operational, unhealthy = server has issues',
-            timestamp: 'Current server time when health check was performed',
-            server: 'API server name and identification',
-            version: 'Current API version deployed',
-            environment: 'Deployment environment (development, staging, production)',
-            uptime: 'How long the server has been running',
-          },
-          nextSteps: [
-            'If status is healthy: API is ready for requests',
-            'If status is unhealthy: Check logs and system resources',
-            'Use this before making other API calls to ensure availability',
-          ],
-        },
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(mcpResponse, null, 2),
-          },
-        ],
-      };
-    } catch (error) {
-      this.logger.error('Error getting API health status', { err: error });
-      
-      const errorResponse = {
-        tool: 'get_api_health',
-        error: 'Failed to retrieve health status',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-        suggestion: 'Check server logs and ensure health service is properly configured',
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(errorResponse, null, 2),
           },
         ],
       };

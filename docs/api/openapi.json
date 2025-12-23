@@ -47,7 +47,7 @@
     }
   },
   "info": {
-    "title": "NestJS Hello API",
+    "title": "NestJS API",
     "description": "Production-ready NestJS API with Fastify and Pino",
     "version": "1.0.0",
     "contact": {}

@@ -64,14 +64,14 @@ describe('Main Bootstrap Components', () => {
   describe('DocumentBuilder Configuration', () => {
     it('should create DocumentBuilder with correct settings', () => {
       const builder = new DocumentBuilder()
-        .setTitle('NestJS Hello API')
+        .setTitle('NestJS API')
         .setDescription('Production-ready NestJS API with Fastify and Pino')
         .setVersion('1.0.0')
         .addServer('http://localhost:3232', 'API Server');
 
       const config = builder.build();
 
-      expect(config.info.title).toBe('NestJS Hello API');
+      expect(config.info.title).toBe('NestJS API');
       expect(config.info.description).toBe('Production-ready NestJS API with Fastify and Pino');
       expect(config.info.version).toBe('1.0.0');
       expect(config.servers).toEqual([{ url: 'http://localhost:3232', description: 'API Server' }]);
