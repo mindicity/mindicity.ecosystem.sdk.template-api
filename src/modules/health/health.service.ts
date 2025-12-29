@@ -46,13 +46,6 @@ export class HealthService {
       environment: process.env.NODE_ENV ?? 'development',
     };
 
-    this.logger.debug('health status generated', {
-      status: healthData.status,
-      server: healthData.server,
-      version: healthData.version,
-      uptime: healthData.uptime,
-    });
-
     return healthData;
   }
 

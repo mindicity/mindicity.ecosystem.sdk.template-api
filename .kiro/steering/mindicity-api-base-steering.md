@@ -144,11 +144,6 @@ export class {ModuleName}Service {
 
       const results = await this.databaseService.queryMany<{Entity}Data>(sql, params);
       
-      this.logger.debug('{entities} retrieved', { 
-        count: results.length,
-        correlationId: ContextUtil.getCorrelationId()
-      });
-      
       return results;
     } catch (error) {
       this.logger.error('failed to retrieve {entities}', { 
