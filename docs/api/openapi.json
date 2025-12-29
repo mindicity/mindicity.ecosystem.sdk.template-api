@@ -49,7 +49,7 @@
   "info": {
     "title": "NestJS API",
     "description": "Production-ready NestJS API with Fastify and Pino",
-    "version": "1.0.0",
+    "version": "1.0.0s",
     "contact": {}
   },
   "tags": [],
