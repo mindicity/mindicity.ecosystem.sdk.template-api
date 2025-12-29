@@ -9,7 +9,8 @@ inclusion: always
 **MANDATORY:** All new Mindicity API projects MUST use the bootstrap process from `mindicity-api-bootstrap-steering.md`. This is not optional.
 
 **Quick Start:**
-1. Clone template repository 
+
+1. Clone template repository
 2. Run bootstrap process (renames template → your API)
 3. Implement your business modules in `src/modules/`
 
@@ -20,6 +21,7 @@ inclusion: always
 **Tech Stack:** Node.js + NestJS + Fastify + Pino + Zod + MCP + TypeScript (strict mode)
 
 **Core Principles:**
+
 - **Module Isolation:** Business logic in `src/modules/`, infrastructure in `src/infrastructure/`
 - **Gateway Authentication:** No auth guards in endpoints - gateway handles all security
 - **Centralized Logging:** Use `ContextLoggerService` with correlation IDs
@@ -29,7 +31,8 @@ inclusion: always
 ## 🏗️ Directory Structure & Rules
 
 ### Core Infrastructure (🔒 DO NOT MODIFY)
-```
+
+```text
 src/
 ├── common/           # Shared utilities, interceptors, filters
 ├── config/           # Configuration schemas (Zod validation)
@@ -39,7 +42,8 @@ src/
 ```
 
 ### Your Development Area (✅ MODIFY HERE)
-```
+
+```text
 src/modules/{your-api}/
 ├── {api}.module.ts          # NestJS module
 ├── {api}.controller.ts      # HTTP endpoints (DTOs only)
@@ -55,11 +59,13 @@ src/modules/{your-api}/
 ## Infrastructure Extension (When Needed)
 
 **When to Extend Infrastructure:**
+
 - Need new external services (Redis, MQTT, Elasticsearch)
 - Require additional databases or message brokers
 - Must integrate with third-party APIs
 
 **Extension Process:**
+
 1. **Justify:** Document why existing infrastructure is insufficient
 2. **Create Service:** Add to `src/infrastructure/{service-name}/`
 3. **Follow Patterns:** Use `ContextLoggerService`, Zod config, proper error handling
@@ -71,6 +77,7 @@ src/modules/{your-api}/
 ## Implementation Patterns
 
 ### Module Creation
+
 ```bash
 # Generate module structure
 nest generate module modules/{module-name} --no-spec
@@ -80,6 +87,7 @@ mkdir -p src/modules/{module-name}/{dto,interfaces,mcp,test}
 ```
 
 ### Controller Pattern (No Auth Guards!)
+
 ```typescript
 @ApiTags('{module-name}')
 @ApiBearerAuth() // Swagger docs only - gateway handles auth
@@ -107,6 +115,7 @@ export class {ModuleName}Controller {
 ```
 
 ### Service Pattern (Use SqlQueryBuilder)
+
 ```typescript
 @Injectable()
 export class {ModuleName}Service {
@@ -153,6 +162,7 @@ export class {ModuleName}Service {
 ```
 
 ### DTOs vs Interfaces
+
 ```typescript
 // DTOs (Controllers only) - Zod validation
 const Create{Entity}Schema = z.object({
@@ -173,6 +183,7 @@ export interface {Entity}Data {
 ## Database Queries
 
 ### SqlQueryBuilder (MANDATORY for Simple Queries)
+
 ```typescript
 // ✅ Use SqlQueryBuilder for standard operations
 const { query: sql, params } = SqlQueryBuilder
@@ -188,7 +199,9 @@ const results = await this.databaseService.queryMany<UserData>(sql, params);
 ```
 
 ### Raw SQL (EXCEPTIONS ONLY)
+
 **Only allowed for:**
+
 - CTEs (Common Table Expressions)
 - Window functions
 - Advanced PostgreSQL features
@@ -216,6 +229,7 @@ const sql = `
 **CRITICAL:** Always use `ContextLoggerService`, never `console.log`
 
 ### Logger Setup
+
 ```typescript
 constructor(loggerService: ContextLoggerService) {
   this.logger = loggerService.child({ serviceContext: ExampleService.name });
@@ -223,11 +237,13 @@ constructor(loggerService: ContextLoggerService) {
 ```
 
 ### Logging Levels
+
 - **trace**: Method entry/exit with parameters
 - **debug**: Business logic steps with context
 - **error**: Exceptions with correlation ID
 
 ### Infrastructure vs Business Logging
+
 **Infrastructure providers** (Database, MQTT, WebSocket) handle their own logging centrally.
 **Business services** log only business context, NOT infrastructure performance.
 
@@ -259,6 +275,7 @@ async findUsers(): Promise<UserData[]> {
 ## Code Quality & Standards
 
 ### ESLint Rules (ENFORCED)
+
 - **TypeScript Strict Mode**: Explicit return types, no `any`, proper typing
 - **Nullish Coalescing**: Use `??` instead of `||` for defaults
 - **Security**: No `console.log`, no `eval`, no hardcoded secrets
@@ -275,6 +292,7 @@ const pageSize = query.limit || 10;
 ```
 
 ### Security Rules
+
 ```typescript
 // ❌ Prohibited
 console.log('Debug');           // Use this.logger
@@ -287,6 +305,7 @@ const secret = this.configService.get<string>('secret');
 ```
 
 ### Documentation Requirements
+
 ```typescript
 /**
  * UserService provides user management with correlation logging.
@@ -305,21 +324,26 @@ async findOne(id: string): Promise<UserData | null> {
 
 ### MCP Implementation Rules
 
-**Default: HTTP Transport**
+#### Default: HTTP Transport
+
 - MCP tools MUST be implemented for HTTP transport (unless SSE explicitly requested)
 - HTTP provides complete functionality, production-ready error handling
 - One tool per endpoint/intention with clear naming
 
-**MCP File Naming Convention:**
+#### MCP File Naming Convention
+
 - **Pattern**: `{api_name}-mcp-{transport}.tool.ts`
-- **Examples**: 
+- **Examples**:
   - `users-mcp-http.tool.ts` (HTTP transport)
   - `weather-mcp-sse.tool.ts` (SSE transport)
   - `notifications-mcp-http.tool.ts` (HTTP transport)
 - **Test Files**: `{api_name}-mcp-{transport}.tool.spec.ts`
 - **Index Export**: Update `mcp/index.ts` to export from the correctly named file
 
-**Tool Naming Pattern:** `{action}_{module}_{entity}`
+#### Tool Naming Pattern
+
+`{action}_{module}_{entity}`
+
 ```typescript
 // Examples:
 'get_users_list'      // GET /users
@@ -330,6 +354,7 @@ async findOne(id: string): Promise<UserData | null> {
 ```
 
 ### MCP Tool Implementation Pattern
+
 ```typescript
 // MCP Tool Class with comprehensive definitions
 export class {ModuleName}McpHttpTool {
@@ -397,6 +422,7 @@ Detailed explanation including:
 ```
 
 ### MCP Integration Checklist
+
 - [ ] Add service to `TransportDependencies` interface
 - [ ] Update `createTransportDependencies` function
 - [ ] Inject service in `McpServerService` constructor
@@ -412,6 +438,7 @@ Detailed explanation including:
 **CRITICAL:** Tool definitions should be comprehensive and provide detailed guidance for AI agents.
 
 ### Rich Tool Definitions Structure
+
 ```typescript
 // ✅ CORRECT: Comprehensive tool definition
 static getToolDefinitions() {
@@ -473,6 +500,7 @@ static getToolDefinitions() {
 ```
 
 ### Tool Definition Requirements
+
 - **Comprehensive Description**: Multi-line description with bullet points explaining functionality
 - **Transport Specification**: Clearly indicate which transport (HTTP/STDIO/SSE) the tool uses
 - **Usage Guidance**: When to use, response format, field interpretations
@@ -481,21 +509,25 @@ static getToolDefinitions() {
 
 ## Module Creation Checklist
 
-**PREREQUISITE:** 
+**PREREQUISITE:**
+
 - [ ] **MANDATORY:** Project created using bootstrap process (see top of document)
 - [ ] Base API repository cloned and bootstrap steering followed
 
 **Structure:**
+
 - [ ] Use NestJS CLI: `nest generate module/controller/service`
 - [ ] Create `dto/`, `interfaces/`, `test/` directories
 - [ ] Follow kebab-case naming for files
 
 **Implementation:**
+
 - [ ] Controller: DTOs only, `@ApiBearerAuth()` for docs, no auth guards
 - [ ] Service: Interfaces only, child logger setup, `ContextUtil` usage
 - [ ] Module: Import infrastructure modules (DatabaseModule, etc.)
 
 **Infrastructure Extensions (IF NEEDED):**
+
 - [ ] **JUSTIFY EXTENSION**: Document why existing infrastructure is insufficient
 - [ ] **NEW SERVICE CREATION**: Create in `src/infrastructure/{service-name}/`
 - [ ] **FOLLOW PATTERNS**: Use ContextLoggerService, proper error handling, Zod config
@@ -503,6 +535,7 @@ static getToolDefinitions() {
 - [ ] **TESTING**: Add unit and integration tests
 
 **MCP Integration (MANDATORY):**
+
 - [ ] **HTTP TRANSPORT**: MCP tools MUST be implemented for HTTP (default)
 - [ ] **ONE TOOL PER ENDPOINT**: Each API endpoint needs corresponding MCP tool
 - [ ] **TOOL NAMING**: Follow `{action}_{module}_{entity}` pattern (snake_case)
@@ -512,6 +545,7 @@ static getToolDefinitions() {
 - [ ] **COMPREHENSIVE TESTING**: Add MCP E2E tests for all tools
 
 **Code Quality:**
+
 - [ ] ESLint rules enforced (no `console.log`, use `??` not `||`, explicit return types)
 - [ ] Use SqlQueryBuilder for simple queries, raw SQL only for complex scenarios
 - [ ] Infrastructure logs in providers only, business logs in services only
