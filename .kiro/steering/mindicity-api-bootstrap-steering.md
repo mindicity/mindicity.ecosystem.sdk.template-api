@@ -10,6 +10,14 @@ inclusion: always
 
 This is a template-based NestJS API project that serves as the foundation for all Mindicity APIs. When creating new API projects, the AI assistant must rename the template module to match the new API's purpose while preserving all architectural patterns and infrastructure.
 
+**AI Assistant Requirements:**
+
+- MUST require explicit user input before starting (project name, API module name, description)
+- MUST validate all inputs against specified patterns before proceeding
+- MUST execute steps in exact order without skipping validation
+- MUST implement MCP tools for HTTP transport (default) unless SSE explicitly requested
+- MUST verify each step completion before proceeding to next step
+
 ## 🏗️ CRITICAL: Core vs Module Separation
 
 **FUNDAMENTAL PRINCIPLE**: The template architecture maintains a strict separation between core infrastructure and API modules.
@@ -51,26 +59,153 @@ This is a template-based NestJS API project that serves as the foundation for al
 
 **MANDATORY**: The template MUST be cloned from the official Mindicity template repository:
 
-**Repository URL**: `ssh://git@gitlab.devops.mindicity.it:2222/mindicity/ecosystem/sdk/mindicity.ecosystem.sdk.template-api.git`
+**Repository URL**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
 
-**Branch**: `develop`
+**Branch**: `main`
 
 **Clone Command**:
 
 ```bash
 # Clone the template to the root of your project directory
-git clone -b develop ssh://git@gitlab.devops.mindicity.it:2222/mindicity/ecosystem/sdk/mindicity.ecosystem.sdk.template-api.git .
+git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git .
+
+# Remove template Git history (MANDATORY)
+rm -rf .git
 ```
 
 **IMPORTANT**:
 
 - The `.` at the end clones the template directly into the current directory (project root)
 - Ensure you are in an empty directory before running the clone command
-- Always use the `develop` branch as it contains the latest stable template version with all required infrastructure and patterns
+- Always use the `main` branch as it contains the latest stable template version with all required infrastructure and patterns
+- **MANDATORY**: Remove the `.git` folder after cloning to eliminate template Git history
+- **CRITICAL**: If `.kiro` folder already exists, merge template `.kiro` content with existing configurations
+- You will initialize a new Git repository for your derived project later
+
+## .kiro Folder Management
+
+The template includes a `.kiro` folder with essential Kiro IDE configurations and steering files. Proper management of this folder is critical for maintaining both template guidance and existing project configurations.
+
+### Template .kiro Contents
+
+The template `.kiro` folder contains:
+
+**Steering Files** (`/.kiro/steering/`):
+
+- `mindicity-api-base-steering.md`: Core API development guidelines
+- `mindicity-api-bootstrap-steering.md`: Bootstrap process instructions
+- Additional steering files for consistent development patterns
+
+**Settings** (`/.kiro/settings/`):
+
+- MCP server configurations
+- IDE-specific settings
+- Development environment configurations
+
+### .kiro Merge Strategies
+
+#### Scenario 1: New Project (No existing .kiro)
+
+```bash
+# Simple case - use template .kiro as-is
+# No action needed, template .kiro will be used directly
+```
+
+#### Scenario 2: Existing Project with .kiro
+
+```bash
+# Preserve existing configurations, add template steering
+cp -r template/.kiro/steering/* existing-project/.kiro/steering/
+
+# Optionally merge settings (review manually)
+# Compare template/.kiro/settings/ with existing-project/.kiro/settings/
+```
+
+#### Scenario 3: Complete .kiro Replacement
+
+```bash
+# Backup existing .kiro and use template version
+mv existing-project/.kiro existing-project/.kiro.backup
+cp -r template/.kiro existing-project/
+```
+
+### Critical .kiro Files for Bootstrap
+
+**MANDATORY Template Files**:
+
+- `.kiro/steering/mindicity-api-base-steering.md`
+- `.kiro/steering/mindicity-api-bootstrap-steering.md`
+
+**Optional Template Files** (merge as needed):
+
+- `.kiro/settings/mcp.json` (if MCP configuration needed)
+- Additional steering files for specific development patterns
+
+**Preserve Existing Files**:
+
+- Custom steering files for your project
+- User-specific IDE settings
+- Project-specific MCP configurations
+- Custom agent hooks and workflows
 
 ## Bootstrap Process
 
-### Step 1: User Input Declaration
+### Step 1: Template Setup (MANDATORY)
+
+**CRITICAL**: Before starting the bootstrap process, set up the template repository:
+
+1. **Clone Template Repository**:
+
+   ```bash
+   # Ensure you are in an empty directory for your new project
+   git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git .
+   ```
+
+2. **Merge .kiro Folder** (MANDATORY if .kiro already exists):
+
+   ```bash
+   # If .kiro folder already exists in your project, merge template .kiro content
+   # This preserves existing Kiro configurations while adding template steering files
+   
+   # Option 1: Manual merge (recommended for careful control)
+   # Copy template steering files to existing .kiro/steering/
+   cp -r .kiro/steering/* /path/to/existing/project/.kiro/steering/
+   
+   # Option 2: Backup and replace (if you want template .kiro completely)
+   # mv /path/to/existing/project/.kiro /path/to/existing/project/.kiro.backup
+   # cp -r .kiro /path/to/existing/project/
+   ```
+
+3. **Remove Template Git History** (MANDATORY):
+
+   ```bash
+   # Remove template Git history to start fresh
+   rm -rf .git
+   ```
+
+**Why Merge .kiro Folder?**
+
+- Existing `.kiro` folder may contain project-specific configurations
+- Template `.kiro` contains essential steering files for API development
+- Merging preserves existing settings while adding template guidance
+- Prevents overwriting custom Kiro configurations
+
+**Important .kiro Merge Considerations**:
+
+- **Steering Files**: Template steering files should be added/updated
+- **Settings**: Preserve existing MCP configurations and user settings
+- **Hooks**: Keep existing agent hooks, add template hooks if needed
+- **Custom Files**: Preserve any custom Kiro configurations
+
+**Next Steps After Template Setup**:
+
+- Your directory now contains the clean template files
+- `.kiro` folder properly merged with existing configurations
+- No Git history from the template repository
+- Ready to proceed with bootstrap process
+- You will initialize your own Git repository later (Step 10)
+
+### Step 2: User Input Declaration
 
 **MANDATORY**: Before starting the bootstrap process, the user MUST explicitly declare:
 
@@ -85,7 +220,7 @@ API Module Name: users
 Description: User management and authentication API
 ```
 
-### Step 2: Project Setup Requirements
+### Step 3: Input Validation & Variable Generation
 
 **Input Validation**: After user declaration, validate these required parameters:
 
@@ -104,7 +239,7 @@ Description: User management and authentication API
 - `api_name_pascal`: PascalCase module name (e.g., "Users")
 - `api_name_upper`: UPPER_SNAKE_CASE module name (e.g., "USERS")
 
-### Step 3: File Renaming Operations
+### Step 4: File Renaming Operations
 
 **CRITICAL**: Execute these file operations in exact order to avoid conflicts:
 
@@ -121,7 +256,7 @@ Description: User management and authentication API
 3. **Rename Test Files**:
    - `test/template.e2e-spec.ts` → `test/{api_name}.e2e-spec.ts`
 
-### Step 4: Configuration Updates
+### Step 5: Configuration Updates
 
 **Update package.json**:
 
@@ -145,7 +280,7 @@ Description: User management and authentication API
 - Replace: `TEMPLATE: 'template'`
 - With: `{API_NAME_UPPER}: '{api_name}'`
 
-### Step 5: Content Replacement
+### Step 6: Content Replacement
 
 **In all renamed module files**, replace these patterns:
 
@@ -198,7 +333,7 @@ Description: User management and authentication API
 - Update any hardcoded 'template' strings in test data
 - Update swagger documentation tests if present
 
-### Step 6: Documentation and Configuration
+### Step 7: Documentation and Configuration
 
 **Update README.md**:
 
@@ -217,17 +352,18 @@ Description: User management and authentication API
 - `APP_LOG_PREFIX=api_template` → `APP_LOG_PREFIX=api_{project_name}`
 - `APP_API_SCOPE_PREFIX=/project` → `APP_API_SCOPE_PREFIX=/{project_name}`
 
-### Step 7: MCP Integration (MANDATORY)
+### Step 8: MCP Integration (MANDATORY)
 
 **CRITICAL**: After bootstrap completion, MCP tools MUST be implemented for the new API module.
 
-#### Mandatory MCP Tool Implementation Rules
+#### MCP Implementation Rules
 
 **DEFAULT BEHAVIOR**: Unless explicitly specified otherwise, MCP tools MUST be implemented for **HTTP transport**
 
-**MCP File Naming Convention**: 
+**MCP File Naming Convention**:
+
 - **Pattern**: `{api_name}-mcp-{transport}.tool.ts`
-- **Examples**: 
+- **Examples**:
   - `users-mcp-http.tool.ts` (HTTP transport)
   - `users-mcp-sse.tool.ts` (SSE transport)
   - `weather-mcp-http.tool.ts` (HTTP transport)
@@ -237,7 +373,7 @@ Description: User management and authentication API
 **Implementation Decision Matrix**:
 
 | Bootstrap Request | MCP Implementation | Transport | Functionality |
-|-------------------|-------------------|-----------|---------------|
+| --- | --- | --- | --- |
 | Standard bootstrap | ✅ **MANDATORY HTTP** | HTTP | Complete tools + resources |
 | "Bootstrap with SSE" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
 | "Bootstrap for real-time" | ✅ **MANDATORY SSE Only** | SSE | Basic connectivity only |
@@ -249,7 +385,7 @@ Description: User management and authentication API
 // Pattern: {action}_{api_name}_{entity}
 
 'get_{api_name}_list',      // GET /{api_name}
-'create_{api_name}',        // POST /{api_name}  
+'create_{api_name}',        // POST /{api_name}
 'get_{api_name}_by_id',     // GET /{api_name}/:id
 'update_{api_name}',        // PUT /{api_name}/:id
 'delete_{api_name}',        // DELETE /{api_name}/:id
@@ -272,7 +408,7 @@ Description: User management and authentication API
 6. Add tool descriptions to `ListToolsRequestSchema`
 7. Create MCP E2E tests for all new tools
 
-### Step 8: Verification
+### Step 9: Verification
 
 **CRITICAL**: Run these commands to verify the bootstrap was successful:
 
@@ -295,6 +431,48 @@ Description: User management and authentication API
 
 **If any step fails**, the bootstrap is incomplete and must be fixed before proceeding.
 
+### Step 10: Git Repository Initialization
+
+**CRITICAL**: Initialize a new Git repository for your project:
+
+1. **Initialize Git Repository**:
+
+   ```bash
+   # Initialize new Git repository
+   git init
+   
+   # Add all files to staging
+   git add .
+   
+   # Create initial commit
+   git commit -m "Initial commit: Bootstrap from template"
+   ```
+
+2. **Set Up Remote Repository** (Optional):
+
+   ```bash
+   # Add your project's remote repository
+   git remote add origin https://github.com/your-org/your-project-name.git
+   
+   # Push to remote repository
+   git branch -M main
+   git push -u origin main
+   ```
+
+**Why Initialize New Git Repository?**
+
+- Creates a clean Git history starting with your project
+- No template commit history in your project
+- Proper version control for your derived project
+- Ready for your team's development workflow
+
+**Git Setup Verification**:
+
+- [ ] `.git` folder exists in project root
+- [ ] Initial commit created successfully
+- [ ] Remote repository configured (if applicable)
+- [ ] Ready for team development
+
 ## Post-Bootstrap Instructions
 
 **Success Message**: Project `api-{project_name}` has been successfully created!
@@ -305,7 +483,6 @@ Description: User management and authentication API
 2. **Database Configuration**: Update database connection settings in `.env`
 3. **API Customization**: Review and customize API endpoints in `src/modules/{api_name}/`
 4. **Documentation**: Update API documentation in `docs/` directory
-5. **Git Setup**: Initialize Git repository and set up remote
 
 ### Development Commands
 
@@ -320,7 +497,7 @@ Description: User management and authentication API
 - **API Base**: `http://localhost:3232/mcapi/{project_name}`
 - **Swagger UI**: `http://localhost:3232/mcapi/docs/swagger/ui`
 
-## AI Assistant Guidelines
+## AI Assistant Execution Guidelines
 
 ### Critical Rules for AI Assistants
 
@@ -331,7 +508,7 @@ Description: User management and authentication API
 5. **Handle errors gracefully** - If any step fails, provide clear error messages and cleanup guidance
 6. **MANDATORY MCP INTEGRATION** - Always implement MCP tools for HTTP transport unless SSE explicitly requested
 
-### Input Validation Rules
+### Input Validation Patterns
 
 **project_name**:
 
@@ -350,13 +527,16 @@ Description: User management and authentication API
 - Length: 10-200 characters
 - Examples: `User management and authentication API`, `Weather data aggregation service`
 
-### Error Handling
+### Common Error Scenarios
 
-**Common Issues and Solutions**:
+**File Operations**:
 
 - **File not found**: Verify the template structure matches expectations
 - **npm install fails**: Ensure Node.js version >= 18 and npm is updated
 - **Build fails**: Check TypeScript configuration and verify all imports are updated
+
+**Test Issues**:
+
 - **Test failures**: Ensure all class names and imports in test files are properly renamed
 - **Test import errors**: Verify all import paths in `.spec.ts` files have been updated from `template` to `{api_name}`
 - **E2E test failures**: Check that all API endpoint paths in tests have been updated (`'/mcapi/template'` → `'/mcapi/{api_name}'`)
@@ -379,13 +559,15 @@ The bootstrap is successful when:
 
 **STEP-BY-STEP EXECUTION**:
 
-1. **Validate User Input**: Confirm project_name, api_name, and description meet requirements
-2. **Generate Variables**: Create all derived variables (pascal case, upper case, etc.)
-3. **File Operations**: Execute renaming operations in exact order specified
-4. **Content Updates**: Replace all template references with new API names
-5. **Configuration Updates**: Update package.json, app.module.ts, routes.config.ts
-6. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
-7. **Verification**: Run build, lint, and test commands to ensure success
-8. **Report Results**: Provide clear success/failure status with next steps
+1. **Template Setup**: Clone repository, merge .kiro folder, and remove .git folder for clean start
+2. **Validate User Input**: Confirm project_name, api_name, and description meet requirements
+3. **Generate Variables**: Create all derived variables (pascal case, upper case, etc.)
+4. **File Operations**: Execute renaming operations in exact order specified
+5. **Content Updates**: Replace all template references with new API names
+6. **Configuration Updates**: Update package.json, app.module.ts, routes.config.ts
+7. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
+8. **Verification**: Run build, lint, and test commands to ensure success
+9. **Git Initialization**: Initialize new Git repository for the project
+10. **Report Results**: Provide clear success/failure status with next steps
 
 **CRITICAL**: Never proceed to the next step if the current step fails. Always fix issues before continuing.
