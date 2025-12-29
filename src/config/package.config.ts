@@ -1,6 +1,7 @@
-import { registerAs } from '@nestjs/config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+
+import { registerAs } from '@nestjs/config';
 
 import { z } from 'zod';
 

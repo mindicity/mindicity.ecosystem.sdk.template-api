@@ -6,7 +6,10 @@ import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { McpTransport, TransportConfig } from './base-transport';
 import { OptionalTransportDependencies } from './transport-dependencies';
 
-// Forward declaration to avoid circular dependency
+/**
+ * Forward declaration to avoid circular dependency.
+ * Defines the interface for MCP server service operations.
+ */
 interface IMcpServerService {
   getAvailableTools(): Array<{
     name: string;
@@ -35,6 +38,8 @@ interface IMcpServerService {
  * Delegates all MCP operations to the McpServerService for dynamic tool handling.
  */
 export class HttpTransport implements McpTransport {
+  private static readonly jsonrpcVersion = '2.0';
+  
   private httpServer: HttpServer | null = null;
   private mcpServer: Server | null = null;
   private mcpServerService: IMcpServerService | null = null;
@@ -88,7 +93,7 @@ export class HttpTransport implements McpTransport {
       });
 
       req.on('end', (): void => {
-        (async (): Promise<void> => {
+        ((): void => {
           try {
             const request = JSON.parse(body);
             
@@ -104,7 +109,7 @@ export class HttpTransport implements McpTransport {
             };
 
             // Handle the MCP request
-            await this.handleMcpRequest(request, mockTransport);
+            this.handleMcpRequest(request, mockTransport);
           } catch (error) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ 
@@ -112,13 +117,7 @@ export class HttpTransport implements McpTransport {
               details: error instanceof Error ? error.message : 'Unknown error'
             }));
           }
-        })().catch((error) => {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ 
-            error: 'Internal server error',
-            details: error instanceof Error ? error.message : 'Unknown error'
-          }));
-        });
+        })();
       });
     });
 
@@ -174,205 +173,220 @@ export class HttpTransport implements McpTransport {
    * All tool and resource operations are handled dynamically by the MCP server service.
    * @private
    */
-  private async handleMcpRequest(request: unknown, transport: { send: (response: unknown) => void }): Promise<void> {
+  private handleMcpRequest(request: unknown, transport: { send: (response: unknown) => void }): void {
     try {
       const req = request as { method?: string; params?: unknown; id?: unknown; jsonrpc?: string };
       
       switch (req.method) {
         case 'initialize':
-          transport.send({
-            jsonrpc: '2.0',
-            id: req.id,
-            result: {
-              protocolVersion: '2024-11-05',
-              capabilities: {
-                tools: {},
-                resources: {},
-              },
-              serverInfo: {
-                name: this.config.serverName,
-                version: this.config.serverVersion,
-              },
-            },
-          });
+          this.handleInitialize(req, transport);
           break;
-          
         case 'tools/list':
-          if (!this.mcpServerService) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'MCP server service not initialized',
-              },
-            });
-            return;
-          }
-          
-          try {
-            const tools = this.mcpServerService.getAvailableTools();
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              result: { tools },
-            });
-          } catch (error) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'Error listing tools',
-                data: error instanceof Error ? error.message : 'Unknown error',
-              },
-            });
-          }
+          this.handleToolsList(req, transport);
           break;
-          
         case 'tools/call':
-          if (!this.mcpServerService) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'MCP server service not initialized',
-              },
-            });
-            return;
-          }
-          
-          try {
-            const params = req.params as { name?: string; arguments?: unknown };
-            const toolName = params?.name;
-            const toolArgs = (params?.arguments as Record<string, unknown>) ?? {};
-            
-            if (!toolName) {
-              transport.send({
-                jsonrpc: '2.0',
-                id: req.id,
-                error: {
-                  code: -32602,
-                  message: 'Tool name is required',
-                },
-              });
-              return;
-            }
-            
-            const result = this.mcpServerService.executeToolCall(toolName, toolArgs);
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              result,
-            });
-          } catch (error) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'Tool execution failed',
-                data: error instanceof Error ? error.message : 'Unknown error',
-              },
-            });
-          }
+          this.handleToolsCall(req, transport);
           break;
-          
         case 'resources/list':
-          if (!this.mcpServerService) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'MCP server service not initialized',
-              },
-            });
-            return;
-          }
-          
-          try {
-            const resources = this.mcpServerService.getAvailableResources();
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              result: { resources },
-            });
-          } catch (error) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'Error listing resources',
-                data: error instanceof Error ? error.message : 'Unknown error',
-              },
-            });
-          }
+          this.handleResourcesList(req, transport);
           break;
-          
         case 'resources/read':
-          if (!this.mcpServerService) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'MCP server service not initialized',
-              },
-            });
-            return;
-          }
-          
-          try {
-            const params = req.params as { uri?: string };
-            const uri = params?.uri;
-            
-            if (!uri) {
-              transport.send({
-                jsonrpc: '2.0',
-                id: req.id,
-                error: {
-                  code: -32602,
-                  message: 'Resource URI is required',
-                },
-              });
-              return;
-            }
-            
-            const result = this.mcpServerService.readResource(uri);
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              result,
-            });
-          } catch (error) {
-            transport.send({
-              jsonrpc: '2.0',
-              id: req.id,
-              error: {
-                code: -32603,
-                message: 'Error reading resource',
-                data: error instanceof Error ? error.message : 'Unknown error',
-              },
-            });
-          }
+          this.handleResourcesRead(req, transport);
           break;
-          
         default:
-          transport.send({
-            jsonrpc: '2.0',
-            id: req.id,
-            error: {
-              code: -32601,
-              message: `Method not implemented: ${req.method}`,
-            },
-          });
+          this.handleUnknownMethod(req, transport);
       }
     } catch (error) {
       this.handleError(request, transport, error);
     }
+  }
+
+  /**
+   * Handle initialize request
+   * @private
+   */
+  private handleInitialize(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: HttpTransport.jsonrpcVersion,
+      id: req.id,
+      result: {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: {},
+          resources: {},
+        },
+        serverInfo: {
+          name: this.config.serverName,
+          version: this.config.serverVersion,
+        },
+      },
+    });
+  }
+
+  /**
+   * Handle tools/list request
+   * @private
+   */
+  private handleToolsList(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    if (!this.mcpServerService) {
+      this.sendServiceNotInitializedError(req, transport);
+      return;
+    }
+    
+    try {
+      const tools = this.mcpServerService.getAvailableTools();
+      transport.send({
+        jsonrpc: HttpTransport.jsonrpcVersion,
+        id: req.id,
+        result: { tools },
+      });
+    } catch (error) {
+      this.sendError(req, transport, -32603, 'Error listing tools', error);
+    }
+  }
+
+  /**
+   * Handle tools/call request
+   * @private
+   */
+  private handleToolsCall(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): void {
+    if (!this.mcpServerService) {
+      this.sendServiceNotInitializedError(req, transport);
+      return;
+    }
+    
+    try {
+      const params = req.params as { name?: string; arguments?: unknown };
+      const toolName = params?.name;
+      const toolArgs = (params?.arguments as Record<string, unknown>) ?? {};
+      
+      if (!toolName) {
+        this.sendError(req, transport, -32602, 'Tool name is required');
+        return;
+      }
+      
+      const result = this.mcpServerService.executeToolCall(toolName, toolArgs);
+      transport.send({
+        jsonrpc: HttpTransport.jsonrpcVersion,
+        id: req.id,
+        result,
+      });
+    } catch (error) {
+      this.sendError(req, transport, -32603, 'Tool execution failed', error);
+    }
+  }
+
+  /**
+   * Handle resources/list request
+   * @private
+   */
+  private handleResourcesList(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    if (!this.mcpServerService) {
+      this.sendServiceNotInitializedError(req, transport);
+      return;
+    }
+    
+    try {
+      const resources = this.mcpServerService.getAvailableResources();
+      transport.send({
+        jsonrpc: HttpTransport.jsonrpcVersion,
+        id: req.id,
+        result: { resources },
+      });
+    } catch (error) {
+      this.sendError(req, transport, -32603, 'Error listing resources', error);
+    }
+  }
+
+  /**
+   * Handle resources/read request
+   * @private
+   */
+  private handleResourcesRead(req: { id?: unknown; params?: unknown }, transport: { send: (response: unknown) => void }): void {
+    if (!this.mcpServerService) {
+      this.sendServiceNotInitializedError(req, transport);
+      return;
+    }
+    
+    try {
+      const params = req.params as { uri?: string };
+      const uri = params?.uri;
+      
+      if (!uri) {
+        this.sendError(req, transport, -32602, 'Resource URI is required');
+        return;
+      }
+      
+      const result = this.mcpServerService.readResource(uri);
+      transport.send({
+        jsonrpc: HttpTransport.jsonrpcVersion,
+        id: req.id,
+        result,
+      });
+    } catch (error) {
+      this.sendError(req, transport, -32603, 'Error reading resource', error);
+    }
+  }
+
+  /**
+   * Handle unknown method request
+   * @private
+   */
+  private handleUnknownMethod(req: { id?: unknown; method?: string }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: HttpTransport.jsonrpcVersion,
+      id: req.id,
+      error: {
+        code: -32601,
+        message: `Method not implemented: ${req.method}`,
+      },
+    });
+  }
+
+  /**
+   * Send service not initialized error
+   * @private
+   */
+  private sendServiceNotInitializedError(req: { id?: unknown }, transport: { send: (response: unknown) => void }): void {
+    transport.send({
+      jsonrpc: HttpTransport.jsonrpcVersion,
+      id: req.id,
+      error: {
+        code: -32603,
+        message: 'MCP server service not initialized',
+      },
+    });
+  }
+
+  /**
+   * Send error response
+   * @private
+   */
+  private sendError(
+    req: { id?: unknown }, 
+    transport: { send: (response: unknown) => void }, 
+    code: number, 
+    message: string, 
+    error?: unknown
+  ): void {
+    const errorResponse: {
+      code: number;
+      message: string;
+      data?: string;
+    } = {
+      code,
+      message,
+    };
+
+    if (error) {
+      errorResponse.data = error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    transport.send({
+      jsonrpc: HttpTransport.jsonrpcVersion,
+      id: req.id,
+      error: errorResponse,
+    });
   }
 
   /**
@@ -381,7 +395,7 @@ export class HttpTransport implements McpTransport {
    */
   private handleError(request: unknown, transport: { send: (response: unknown) => void }, error: unknown): void {
     transport.send({
-      jsonrpc: '2.0',
+      jsonrpc: HttpTransport.jsonrpcVersion,
       id: request && typeof request === 'object' ? (request as { id?: unknown }).id : undefined,
       error: {
         code: -32603,

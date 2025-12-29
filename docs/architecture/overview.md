@@ -68,6 +68,7 @@ graph TB
 | **Testing** | Jest 30.x | Unit and integration testing |
 | **Property Testing** | fast-check 4.x | Property-based testing |
 | **Database** | DatabaseModule | Raw PostgreSQL query infrastructure |
+| **MCP Integration** | @modelcontextprotocol/sdk 1.x | AI agent connectivity with multiple transports |
 
 ## System Components
 
@@ -105,22 +106,35 @@ src/
 ├── app.module.ts          # Root module with global imports
 ├── config/                # Configuration management
 │   ├── app.config.ts      # Application settings with Zod validation
-│   └── log.config.ts      # Logging configuration with Zod validation
+│   ├── log.config.ts      # Logging configuration with Zod validation
+│   ├── mcp.config.ts      # MCP server configuration with Zod validation
+│   └── routes.config.ts   # API routes configuration
 ├── common/                # Shared utilities and infrastructure
 │   ├── decorators/        # Custom parameter decorators
 │   ├── exceptions/        # Custom exception classes
 │   ├── filters/           # Global exception filters
-│   └── interceptors/      # Request/response interceptors
+│   ├── interceptors/      # Request/response interceptors
+│   ├── services/          # Shared services (ContextLoggerService)
+│   └── utils/             # Utility functions and helpers
+├── infrastructure/        # Infrastructure layer
+│   ├── database/          # Database service and configuration
+│   └── mcp/               # MCP server implementation
+│       ├── transports/    # HTTP, SSE, STDIO transport implementations
+│       ├── mcp.module.ts  # MCP module configuration
+│       └── mcp-server.service.ts  # MCP server service
 └── modules/               # Feature modules
-    ├── health/            # Health check functionality
+    ├── health/            # Health check functionality with MCP tools
+    │   ├── dto/           # Health response DTOs
+    │   ├── mcp/           # Health-specific MCP tools and resources
     │   ├── health.controller.ts
-    │   ├── health.module.ts
-    │   └── dto/
-    └── template/          # Template module (placeholder for customization)
+    │   ├── health.service.ts
+    │   └── health.module.ts
+    └── template/          # Template API module (to be renamed in new projects)
         ├── template.controller.ts
         ├── template.service.ts
         ├── template.module.ts
-        └── dto/
+        ├── entities/      # Empty - ready for your entities
+        └── repositories/  # Empty - ready for your repositories
 ```
 
 ## Module Architecture

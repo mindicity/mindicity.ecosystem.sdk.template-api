@@ -16,6 +16,7 @@ import { HealthService } from '../../modules/health/health.service';
 import { HealthMcpHttpTool, HealthMcpResources } from '../../modules/health/mcp';
 
 import { McpTransport } from './transports/base-transport';
+import { HttpTransport } from './transports/http-transport';
 import { createTransportDependencies } from './transports/transport-dependencies';
 import { TransportFactory } from './transports/transport-factory';
 
@@ -190,7 +191,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
 
     // If using HTTP transport, set the MCP server service reference for dynamic delegation
     if (this.mcpConfig.transport === 'http' && 'setMcpServerService' in this.transport) {
-      (this.transport as any).setMcpServerService(this);
+      (this.transport as HttpTransport).setMcpServerService(this);
     }
 
     const transportInfo = this.transport.getTransportInfo();

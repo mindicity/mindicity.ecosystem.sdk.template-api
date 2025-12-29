@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
 
 import packageConfig, { PackageConfig } from './package.config';
 
@@ -38,7 +38,6 @@ describe('PackageConfig Integration', () => {
 
   it('should match values from actual package.json file', () => {
     // Arrange
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const actualPackageJson = require('../../package.json');
 
     // Act

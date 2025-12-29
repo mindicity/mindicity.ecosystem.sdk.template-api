@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 import packageConfig from '../../config/package.config';
