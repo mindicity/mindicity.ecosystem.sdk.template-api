@@ -76,7 +76,7 @@ nest generate service modules/your-api-name --no-spec
 
 ```bash
 # Clone the repository
-git clone ssh://git@gitlab.devops.mindicity.it:2222/mindicity/ecosystem/sdk/mindicity.ecosystem.sdk.template-api.git
+git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git
 cd mindicity.ecosystem.sdk.template-api
 
 # Install dependencies
@@ -146,7 +146,7 @@ If you prefer manual setup:
 
 ```bash
 # Clone the template
-git clone ssh://git@gitlab.devops.mindicity.it:2222/mindicity/ecosystem/sdk/mindicity.ecosystem.sdk.template-api.git my-new-api
+git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git my-new-api
 cd my-new-api
 
 # Rename the template module
