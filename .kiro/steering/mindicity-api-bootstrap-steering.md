@@ -66,17 +66,23 @@ This is a template-based NestJS API project that serves as the foundation for al
 **Clone Command**:
 
 ```bash
-# Clone the template to the root of your project directory
-git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git .
+# Clone the template to a temporary directory
+git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
 
-# Remove template Git history (MANDATORY)
+# Move template contents to project root
+mv temp-template/* .
+mv temp-template/.* . 2>/dev/null || true
+
+# Remove temporary directory and template Git history
+rm -rf temp-template
 rm -rf .git
 ```
 
 **IMPORTANT**:
 
-- The `.` at the end clones the template directly into the current directory (project root)
-- Ensure you are in an empty directory before running the clone command
+- Clone to temporary directory first to avoid conflicts with existing files
+- Move all contents (including hidden files) to project root
+- Clean up temporary directory and template Git history
 - Always use the `main` branch as it contains the latest stable template version with all required infrastructure and patterns
 - **MANDATORY**: Remove the `.git` folder after cloning to eliminate template Git history
 - **CRITICAL**: If `.kiro` folder already exists, merge template `.kiro` content with existing configurations
@@ -157,8 +163,15 @@ cp -r template/.kiro existing-project/
 1. **Clone Template Repository**:
 
    ```bash
-   # Ensure you are in an empty directory for your new project
-   git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git .
+   # Clone template to temporary directory to avoid conflicts
+   git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
+   
+   # Move all template contents to project root
+   mv temp-template/* .
+   mv temp-template/.* . 2>/dev/null || true
+   
+   # Clean up temporary directory
+   rm -rf temp-template
    ```
 
 2. **Merge .kiro Folder** (MANDATORY if .kiro already exists):
