@@ -492,10 +492,19 @@ Description: User management and authentication API
 
 ### Next Steps for Developer
 
-1. **Environment Setup**: Copy `.env.example` to `.env` and configure environment variables
+1. **Environment Setup**: Copy `.env.example` to `.env` and configure environment variables for development use
 2. **Database Configuration**: Update database connection settings in `.env`
 3. **API Customization**: Review and customize API endpoints in `src/modules/{api_name}/`
 4. **Documentation**: Update API documentation in `docs/` directory
+
+**Environment Setup Details**:
+```bash
+# Copy environment template for development
+cp .env.example .env
+
+# Edit .env file with your specific configuration
+# Update database credentials, API keys, and other environment-specific values
+```
 
 ### Development Commands
 
