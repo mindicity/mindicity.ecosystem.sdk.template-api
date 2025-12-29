@@ -188,6 +188,11 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     // Connect transport to server
     await this.transport.connect(this.server);
 
+    // If using HTTP transport, set the MCP server service reference for dynamic delegation
+    if (this.mcpConfig.transport === 'http' && 'setMcpServerService' in this.transport) {
+      (this.transport as any).setMcpServerService(this);
+    }
+
     const transportInfo = this.transport.getTransportInfo();
     this.logger.info('MCP server connected and ready for AI agent connections', {
       serverName: this.mcpConfig.serverName,
@@ -392,5 +397,56 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
         ],
       };
     }
+  }
+
+  /**
+   * Get all available MCP tools dynamically.
+   * This method is used by HTTP transport to provide tool listings.
+   * @public
+   */
+  public getAvailableTools(): Array<{
+    name: string;
+    description: string;
+    inputSchema: {
+      type: string;
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+  }> {
+    return this.generateDynamicTools();
+  }
+
+  /**
+   * Execute a tool call dynamically.
+   * This method is used by HTTP transport to execute tool calls.
+   * @public
+   */
+  public executeToolCall(toolName: string, args: unknown): CallToolResult {
+    return this.handleDynamicToolCall(toolName, args);
+  }
+
+  /**
+   * Get all available MCP resources dynamically.
+   * This method is used by HTTP transport to provide resource listings.
+   * @public
+   */
+  public getAvailableResources(): Array<{
+    uri: string;
+    name: string;
+    description: string;
+    mimeType: string;
+  }> {
+    return this.generateDynamicResources();
+  }
+
+  /**
+   * Read a resource dynamically.
+   * This method is used by HTTP transport to read resource content.
+   * @public
+   */
+  public readResource(uri: string): {
+    contents: Array<{ uri: string; mimeType: string; text?: string }>;
+  } {
+    return this.handleDynamicResourceRead(uri);
   }
 }

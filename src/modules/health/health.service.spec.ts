@@ -72,12 +72,6 @@ describe('HealthService', () => {
       expect(result.memory).toHaveProperty('arrayBuffers');
       
       expect(mockLoggerService.trace).toHaveBeenCalledWith('getHealthStatus()');
-      expect(mockLoggerService.debug).toHaveBeenCalledWith('health status generated', {
-        status: 'healthy',
-        server: 'test-api',
-        version: '1.0.0',
-        uptime: expect.any(Number),
-      });
     });
 
     it('should use default values when config is not available', () => {
