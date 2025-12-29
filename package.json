@@ -1,7 +1,7 @@
 {
   "name": "nestjs-template-api",
   "version": "1.0.0",
-  "description": "Production-ready NestJS API with Fastify adapter, Pino logging, and proper configuration management",
+  "description": "A production-ready NestJS API template for the Mindicity ecosystem, built with Fastify adapter, Pino logging, and comprehensive configuration management. This template serves as a boilerplate for creating new API projects with consistent architecture, patterns, and best practices.",
   "main": "dist/main.js",
   "scripts": {
     "start": "node dist/main.js",
@@ -58,7 +58,7 @@
     "reflect-metadata": "^0.2.2",
     "rotating-file-stream": "^3.2.7",
     "rxjs": "^7.8.2",
-    "sse-ts": "^0.4.0",
+    "sse-ts": "^1.0.3",
     "uuid": "^13.0.0",
     "ws": "^8.18.0",
     "zod": "^4.1.13"
