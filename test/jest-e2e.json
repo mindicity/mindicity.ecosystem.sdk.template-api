@@ -1,0 +1,33 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "setupFilesAfterEnv": ["<rootDir>/test/setup.ts"],
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!(uuid)/)"
+  ],
+  "collectCoverageFrom": [
+    "src/**/*.(t|j)s",
+    "!src/**/*.spec.ts",
+    "!src/**/*.interface.ts",
+    "!src/main.ts"
+  ],
+  "coverageDirectory": "./test/coverage",
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/src/$1"
+  },
+  "testPathIgnorePatterns": [
+    "/node_modules/",
+    "/dist/"
+  ],
+  "maxWorkers": 1,
+  "forceExit": true,
+  "detectOpenHandles": true,
+  "verbose": true,
+  "testTimeout": 30000,
+  "coverageReporters": ["html", "text", "lcov", "json-summary", "cobertura"]
+}
