@@ -12,7 +12,7 @@ inclusion: always
 
 **STEP 1**: Clone the official template repository:
 ```bash
-git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
+git clone -b master https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
 mv temp-template/* . && mv temp-template/.* . 2>/dev/null || true
 rm -rf temp-template .git
 ```

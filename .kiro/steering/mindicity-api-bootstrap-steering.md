@@ -94,7 +94,7 @@ This template-based NestJS API project serves as the foundation for all Mindicit
 
 **Official Template Repository**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
 
-**Branch**: `main` (always use latest stable version)
+**Branch**: `master` (always use latest stable version)
 
 **Why This Repository is Mandatory**:
 - Contains all required Mindicity infrastructure components
@@ -113,7 +113,7 @@ This template-based NestJS API project serves as the foundation for all Mindicit
 
 ```bash
 # Clone the template to a temporary directory
-git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
+git clone -b master https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
 
 # Move template contents to project root
 mv temp-template/* .
@@ -130,7 +130,7 @@ rm -rf .git
 - Clone to temporary directory first to avoid conflicts with existing files
 - Move all contents (including hidden files) to project root
 - Clean up temporary directory and template Git history
-- Always use the `main` branch as it contains the latest stable template version with all required infrastructure and patterns
+- Always use the `master` branch as it contains the latest stable template version with all required infrastructure and patterns
 - **MANDATORY**: Remove the `.git` folder after cloning to eliminate template Git history
 - **CRITICAL**: If `.kiro` folder already exists, merge template `.kiro` content with existing configurations
 - You will initialize a new Git repository for your derived project later
@@ -220,7 +220,7 @@ cp -r template/.kiro existing-project/
 
    ```bash
    # MANDATORY: Clone the official Mindicity template repository
-   git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
+   git clone -b master https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
    
    # Move all template contents to project root
    mv temp-template/* .
@@ -483,7 +483,14 @@ Description: User management and authentication API
 6. Add tool descriptions to `ListToolsRequestSchema`
 7. Create MCP E2E tests for all new tools
 
-### Step 9: Verification
+### Step 9: Environment Setup (MANDATORY)
+
+**CRITICAL**: Set up the development environment before verification:
+
+1. **Create Environment File**: `cp .env.example .env`
+2. **Configure Environment Variables**: Edit `.env` with your specific settings (database credentials, API keys, etc.)
+
+### Step 10: Verification
 
 **CRITICAL**: Run these commands to verify the bootstrap was successful:
 
@@ -504,9 +511,23 @@ Description: User management and authentication API
 - [ ] Mock data variables renamed appropriately
 - [ ] API endpoint paths updated in E2E tests (`'/template'` → `'/{api_name}'`)
 
+**E2E Test Configuration**:
+
+The template includes proper E2E test configuration to avoid common hanging issues:
+- Database connection checks disabled during tests (`DB_CHECK=false`)
+- MCP server disabled during tests (`MCP_ENABLED=false`)
+- Reduced log levels for cleaner test output
+- Proper test timeouts and cleanup procedures
+- Separate Jest configuration for E2E tests (`jest-e2e.config.js`)
+
+**Running Tests**:
+- Unit tests: `npm run test`
+- E2E tests: `npm run test:e2e`
+- All tests with coverage: `npm run test:cov`
+
 **If any step fails**, the bootstrap is incomplete and must be fixed before proceeding.
 
-### Step 10: Git Repository Initialization
+### Step 11: Git Repository Initialization
 
 **CRITICAL**: Initialize a new Git repository for your project:
 
@@ -530,8 +551,8 @@ Description: User management and authentication API
    git remote add origin https://github.com/your-org/your-project-name.git
    
    # Push to remote repository
-   git branch -M main
-   git push -u origin main
+   git branch -M master
+   git push -u origin master
    ```
 
 **Why Initialize New Git Repository?**
@@ -554,18 +575,31 @@ Description: User management and authentication API
 
 ### Next Steps for Developer
 
-1. **Environment Setup**: Copy `.env.example` to `.env` and configure environment variables for development use
-2. **Database Configuration**: Update database connection settings in `.env`
+1. **Environment Configuration** (MANDATORY): 
+   ```bash
+   # Environment file should already be created during bootstrap
+   # Edit .env file with your specific configuration
+   nano .env  # or use your preferred editor
+   ```
+   
+   **Required Environment Variables to Configure**:
+   - Database connection settings (host, port, username, password, database name)
+   - API keys and external service credentials
+   - Log levels and application-specific settings
+   - Port and host configurations for development
+
+2. **Database Setup**: Ensure your database is running and accessible with the credentials in `.env`
 3. **API Customization**: Review and customize API endpoints in `src/modules/{api_name}/`
 4. **Documentation**: Update API documentation in `docs/` directory
 
 **Environment Setup Details**:
 ```bash
-# Copy environment template for development
-cp .env.example .env
-
-# Edit .env file with your specific configuration
-# Update database credentials, API keys, and other environment-specific values
+# Environment file created during bootstrap - now configure it
+# Update these critical settings in .env:
+# - DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
+# - APP_LOG_LEVEL (debug, info, warn, error)
+# - APP_PORT (default: 3232)
+# - Any API keys for external services your API will use
 ```
 
 ### Development Commands
@@ -650,8 +684,9 @@ The bootstrap is successful when:
 5. **Content Updates**: Replace all template references with new API names
 6. **Configuration Updates**: Update package.json, app.module.ts, routes.config.ts
 7. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
-8. **Verification**: Run build, lint, and test commands to ensure success
-9. **Git Initialization**: Initialize new Git repository for the project
-10. **Report Results**: Provide clear success/failure status with next steps
+8. **Environment Setup**: Create .env file from .env.example template
+9. **Verification**: Run build, lint, and test commands to ensure success
+10. **Git Initialization**: Initialize new Git repository for the project
+11. **Report Results**: Provide clear success/failure status with next steps
 
 **CRITICAL**: Never proceed to the next step if the current step fails. Always fix issues before continuing.

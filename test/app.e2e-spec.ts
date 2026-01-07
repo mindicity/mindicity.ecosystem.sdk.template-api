@@ -8,6 +8,11 @@ describe('AppController (e2e)', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
+    // Set test environment variables to avoid database connection issues
+    process.env.DB_CHECK = 'false';
+    process.env.MCP_ENABLED = 'false';
+    process.env.APP_LOG_LEVEL = 'error'; // Reduce log noise during tests
+    
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -26,12 +31,14 @@ describe('AppController (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
-  it('/mcapi/health/project/ping (GET)', () => {
+  it('/mcapi/project/health/ping (GET)', () => {
     return request(app.getHttpServer())
-      .get('/mcapi/health/project/ping')
+      .get('/mcapi/project/health/ping')
       .expect(200)
       .expect((res) => {
         expect(res.body).toHaveProperty('status');
