@@ -154,6 +154,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     const appConfig = this.configService.get('app');
     const dependencies = createTransportDependencies({
       healthService: this.healthService,
+      loggerService: this.logger,
       appConfig,
       configService: this.configService,
       // Future services can be added here without breaking existing code:

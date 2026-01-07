@@ -50,26 +50,13 @@ export class HttpTransport implements McpTransport {
     private readonly config: TransportConfig,
     private readonly dependencies: OptionalTransportDependencies,
   ) {
-    // Dependencies are optional for HTTP transport since it delegates to McpServerService
-    // Initialize logger from dependencies if available
-    if (dependencies.configService) {
-      // Create a temporary logger service for this transport
-      // Note: We can't create a proper ContextLoggerService here because it requires PinoLogger injection
-      // So we create a simple logger that delegates to console for now
-      this.logger = {
-        debug: (message: string, meta?: any) => console.debug(`[HttpTransport] ${message}`, meta),
-        trace: (message: string, meta?: any) => console.debug(`[HttpTransport] ${message}`, meta),
-        setContext: () => {},
-        child: () => this.logger,
-      } as any;
+    // Initialize logger from dependencies - should always be available
+    if (dependencies.loggerService) {
+      this.logger = dependencies.loggerService.child({ serviceContext: 'HttpTransport' });
+      this.logger.setContext('HttpTransport');
     } else {
-      // Fallback logger (should not happen in normal operation)
-      this.logger = {
-        debug: () => {},
-        trace: () => {},
-        setContext: () => {},
-        child: () => this.logger,
-      } as any;
+      // This should not happen in normal operation, but provide a fallback
+      throw new Error('ContextLoggerService is required for HttpTransport');
     }
   }
 
