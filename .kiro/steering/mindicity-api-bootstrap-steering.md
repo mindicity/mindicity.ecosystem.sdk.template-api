@@ -4,11 +4,44 @@ inclusion: always
 
 # Mindicity API Bootstrap Guide
 
-**CRITICAL**: This document guides AI assistants in bootstrapping new Mindicity API projects from the template repository. All new API projects MUST follow this process.
+## 🚨 MANDATORY: Every New API Project MUST Start Here
 
-## Overview
+**CRITICAL REQUIREMENT**: ALL new Mindicity API projects MUST begin by bootstrapping from the official template repository. This is not optional - it is the ONLY supported way to create new API projects.
 
-This is a template-based NestJS API project that serves as the foundation for all Mindicity APIs. When creating new API projects, the AI assistant must rename the template module to match the new API's purpose while preserving all architectural patterns and infrastructure.
+### Why Bootstrap is Mandatory
+
+- **Production-Ready Foundation**: Template includes pre-configured infrastructure (database, logging, MCP, testing)
+- **Consistent Architecture**: All APIs follow the same proven patterns and structure
+- **Security & Best Practices**: Built-in security configurations and development standards
+- **Future Updates**: Template updates can be applied without breaking your API modules
+- **Team Efficiency**: Developers know exactly where to find components across all APIs
+
+### What Happens Without Bootstrap
+
+❌ **FORBIDDEN**: Creating APIs from scratch or copying files manually will result in:
+- Missing critical infrastructure components
+- Inconsistent project structure
+- Security vulnerabilities
+- Incompatible with Mindicity ecosystem
+- No MCP integration for AI agents
+- Failed code reviews and deployment issues
+
+## 🎯 Bootstrap Process Overview
+
+**EVERY NEW API PROJECT MUST:**
+
+1. **Clone the official template repository** (mandatory first step)
+2. **Run the complete bootstrap process** to rename template → your API
+3. **Implement your business logic** in the designated module areas
+4. **Never modify core infrastructure** - only work in `src/modules/`
+
+**Template Repository (MANDATORY SOURCE)**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
+
+---
+
+## Detailed Implementation Guide
+
+This template-based NestJS API project serves as the foundation for all Mindicity APIs. When creating new API projects, the AI assistant must rename the template module to match the new API's purpose while preserving all architectural patterns and infrastructure.
 
 **AI Assistant Requirements:**
 
@@ -55,15 +88,28 @@ This is a template-based NestJS API project that serves as the foundation for al
 
 **IMPORTANT**: This separation ensures that when the template is updated with new features, security patches, or improvements, your API modules remain completely unaffected.
 
-## Template Repository
+## Template Repository (MANDATORY - NO EXCEPTIONS)
 
-**MANDATORY**: The template MUST be cloned from the official Mindicity template repository:
+**🚨 CRITICAL**: Every new API project MUST start by cloning this exact repository. There are no alternatives.
 
-**Repository URL**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
+**Official Template Repository**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
 
-**Branch**: `main`
+**Branch**: `main` (always use latest stable version)
 
-**Clone Command**:
+**Why This Repository is Mandatory**:
+- Contains all required Mindicity infrastructure components
+- Pre-configured with security, logging, database, and MCP integration
+- Tested and validated architecture patterns
+- Consistent with all other Mindicity APIs
+- Required for ecosystem compatibility
+
+**FORBIDDEN Alternatives**:
+❌ Creating new NestJS projects from scratch
+❌ Using other NestJS templates or boilerplates  
+❌ Copying code from existing APIs manually
+❌ Starting with empty repositories
+
+**Clone Command (Execute This First)**:
 
 ```bash
 # Clone the template to a temporary directory
@@ -78,8 +124,9 @@ rm -rf temp-template
 rm -rf .git
 ```
 
-**IMPORTANT**:
+**CRITICAL REQUIREMENTS**:
 
+- **ALWAYS clone from the official repository** - no exceptions or alternatives
 - Clone to temporary directory first to avoid conflicts with existing files
 - Move all contents (including hidden files) to project root
 - Clean up temporary directory and template Git history
@@ -87,6 +134,13 @@ rm -rf .git
 - **MANDATORY**: Remove the `.git` folder after cloning to eliminate template Git history
 - **CRITICAL**: If `.kiro` folder already exists, merge template `.kiro` content with existing configurations
 - You will initialize a new Git repository for your derived project later
+
+**Template Validation**: After cloning, verify these critical files exist:
+- `src/infrastructure/` (database, MCP, logging services)
+- `src/modules/template/` (template module to be renamed)
+- `.kiro/steering/` (development guidelines)
+- `package.json` with Mindicity dependencies
+- `nest-cli.json` and TypeScript configurations
 
 ## .kiro Folder Management
 
@@ -156,14 +210,16 @@ cp -r template/.kiro existing-project/
 
 ## Bootstrap Process
 
-### Step 1: Template Setup (MANDATORY)
+### Step 1: Template Setup (MANDATORY - FIRST STEP)
 
-**CRITICAL**: Before starting the bootstrap process, set up the template repository:
+**🚨 CRITICAL**: Before ANY other work, you MUST clone and set up the template repository. This is the foundation for all Mindicity APIs.
 
-1. **Clone Template Repository**:
+**MANDATORY FIRST ACTION**: Clone the official template repository:
+
+1. **Clone Template Repository** (REQUIRED):
 
    ```bash
-   # Clone template to temporary directory to avoid conflicts
+   # MANDATORY: Clone the official Mindicity template repository
    git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
    
    # Move all template contents to project root
@@ -173,6 +229,12 @@ cp -r template/.kiro existing-project/
    # Clean up temporary directory
    rm -rf temp-template
    ```
+
+   **Verification**: After cloning, confirm these critical directories exist:
+   - `src/infrastructure/` (core services)
+   - `src/modules/template/` (template to rename)
+   - `.kiro/steering/` (development guidelines)
+   - `docs/` (documentation structure)
 
 2. **Merge .kiro Folder** (MANDATORY if .kiro already exists):
 

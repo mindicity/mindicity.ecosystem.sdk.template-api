@@ -4,17 +4,40 @@ inclusion: always
 
 # Mindicity API Development Guide
 
-## 🚨 CRITICAL: Bootstrap Process Required
+## 🚨 MANDATORY: Bootstrap Process Required for ALL New APIs
 
-**MANDATORY:** All new Mindicity API projects MUST use the bootstrap process from `mindicity-api-bootstrap-steering.md`. This is not optional.
+**CRITICAL REQUIREMENT**: Every new Mindicity API project MUST start by bootstrapping from the official template repository. This is not optional.
 
-**Quick Start:**
+### Quick Start for New APIs
 
-1. Clone template repository
-2. Run bootstrap process (renames template → your API)
-3. Implement your business modules in `src/modules/`
+**STEP 1**: Clone the official template repository:
+```bash
+git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
+mv temp-template/* . && mv temp-template/.* . 2>/dev/null || true
+rm -rf temp-template .git
+```
 
-**Benefits:** Production-ready foundation, consistent architecture, pre-configured infrastructure (database, logging, MCP, testing).
+**STEP 2**: Follow the complete bootstrap process from `mindicity-api-bootstrap-steering.md`
+
+**STEP 3**: Implement your business modules in `src/modules/`
+
+### Why Bootstrap is Mandatory
+
+- **Production-Ready Foundation**: Template includes pre-configured infrastructure (database, logging, MCP, testing)
+- **Consistent Architecture**: All APIs follow the same proven patterns and structure  
+- **Security & Best Practices**: Built-in security configurations and development standards
+- **Future Updates**: Template updates can be applied without breaking your API modules
+- **Team Efficiency**: Developers know exactly where to find components across all APIs
+
+### What's Included in the Template
+
+✅ **Pre-configured Infrastructure**: Database connections, logging, MCP integration, testing setup
+✅ **Security Patterns**: Authentication handling, input validation, error management
+✅ **Development Tools**: ESLint, Prettier, Jest, Docker configurations
+✅ **Documentation**: API docs, architecture guides, development workflows
+✅ **CI/CD Ready**: GitLab CI, Docker builds, deployment scripts
+
+---
 
 ## Architecture Overview
 
