@@ -3,6 +3,7 @@ import { createServer, Server as HttpServer } from 'http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 import { McpTransport, TransportConfig } from './base-transport';
 import { OptionalTransportDependencies } from './transport-dependencies';
 
@@ -43,12 +44,33 @@ export class HttpTransport implements McpTransport {
   private httpServer: HttpServer | null = null;
   private mcpServer: Server | null = null;
   private mcpServerService: IMcpServerService | null = null;
+  private readonly logger: ContextLoggerService;
 
   constructor(
     private readonly config: TransportConfig,
     private readonly dependencies: OptionalTransportDependencies,
   ) {
     // Dependencies are optional for HTTP transport since it delegates to McpServerService
+    // Initialize logger from dependencies if available
+    if (dependencies.configService) {
+      // Create a temporary logger service for this transport
+      // Note: We can't create a proper ContextLoggerService here because it requires PinoLogger injection
+      // So we create a simple logger that delegates to console for now
+      this.logger = {
+        debug: (message: string, meta?: any) => console.debug(`[HttpTransport] ${message}`, meta),
+        trace: (message: string, meta?: any) => console.debug(`[HttpTransport] ${message}`, meta),
+        setContext: () => {},
+        child: () => this.logger,
+      } as any;
+    } else {
+      // Fallback logger (should not happen in normal operation)
+      this.logger = {
+        debug: () => {},
+        trace: () => {},
+        setContext: () => {},
+        child: () => this.logger,
+      } as any;
+    }
   }
 
   /**
@@ -190,7 +212,20 @@ export class HttpTransport implements McpTransport {
    */
   private handleMcpRequest(request: unknown, transport: { send: (response: unknown) => void }): void {
     try {
+      // Validate request is an object
+      if (!request || typeof request !== 'object') {
+        this.handleError(request, transport, new Error('Invalid request: must be an object'));
+        return;
+      }
+
       const req = request as { method?: string; params?: unknown; id?: unknown; jsonrpc?: string };
+      
+      this.logger.debug('MCP request received', { 
+        method: req.method, 
+        id: req.id,
+        hasParams: !!req.params,
+        jsonrpc: req.jsonrpc 
+      });
       
       switch (req.method) {
         case 'initialize':

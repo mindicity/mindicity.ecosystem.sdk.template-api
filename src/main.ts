@@ -93,7 +93,7 @@ export async function bootstrap(): Promise<void> {
     app.enableCors({
       origin: true,
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
       allowedHeaders: [
         'Content-Type',
         'Authorization',

@@ -16,6 +16,7 @@ describe('SseTransport', () => {
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockConfigService: any;
   let config: TransportConfig;
 
   beforeEach(() => {
@@ -57,9 +58,17 @@ describe('SseTransport', () => {
       port: 3232,
     };
 
+    mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'app') return mockAppConfig;
+        return null;
+      }),
+    } as any;
+
     const dependencies = createTransportDependencies({
       healthService: mockHealthService,
       appConfig: mockAppConfig,
+      configService: mockConfigService,
     });
 
     transport = new SseTransport(config, dependencies);
@@ -253,7 +262,14 @@ describe('SseTransport', () => {
       requestHandler(mockReq, mockRes);
 
       expect(mockRes.writeHead).toHaveBeenCalledWith(404, { 'Content-Type': 'application/json' });
-      expect(mockRes.end).toHaveBeenCalledWith(JSON.stringify({ error: 'Not found' }));
+      expect(mockRes.end).toHaveBeenCalledWith(JSON.stringify({ 
+        error: 'Not found',
+        availableEndpoints: {
+          events: '/mcapi/test/mcp/events',
+          requests: '/mcapi/test/mcp',
+          info: '/mcapi/test/mcp/info'
+        }
+      }));
     });
   });
 
@@ -539,6 +555,7 @@ describe('SseTransport', () => {
     it('should accept valid dependencies when provided', () => {
       const validDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        configService: mockConfigService,
       });
       
       expect(() => {

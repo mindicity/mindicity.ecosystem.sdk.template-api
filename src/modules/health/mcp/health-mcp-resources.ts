@@ -3,12 +3,21 @@ import { join } from 'path';
 
 import { ConfigService } from '@nestjs/config';
 
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
+
 /**
  * MCP resources for health module.
  * Provides access to API documentation and specifications.
  */
 export class HealthMcpResources {
-  constructor(private readonly configService: ConfigService) {}
+  private readonly logger: ContextLoggerService;
+
+  constructor(
+    private readonly configService: ConfigService,
+    loggerService: ContextLoggerService,
+  ) {
+    this.logger = loggerService.child({ serviceContext: 'HealthMcpResources' });
+  }
 
   /**
    * Get resource definitions for health module.
@@ -206,6 +215,8 @@ Content: Machine-readable API specification that can be used to generate client 
   handleResourceRead(uri: string): {
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
   } {
+    this.logger.trace('handleResourceRead() called', { uri });
+    
     try {
       if (uri.startsWith('doc://openapi') && uri.includes('/specs')) {
         return this.fetchHealthSwaggerResource(uri);
@@ -232,6 +243,8 @@ Content: Machine-readable API specification that can be used to generate client 
   private fetchHealthSwaggerResource(uri: string): {
     contents: Array<{ uri: string; mimeType: string; text?: string }>;
   } {
+    this.logger.trace('fetchHealthSwaggerResource() called', { uri });
+    
     try {
       const openApiPath = join(process.cwd(), 'docs', 'api', 'openapi.json');
       

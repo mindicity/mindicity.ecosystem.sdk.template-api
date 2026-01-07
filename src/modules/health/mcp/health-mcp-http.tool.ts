@@ -1,5 +1,6 @@
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 import { HealthService } from '../health.service';
 
 /**
@@ -7,7 +8,14 @@ import { HealthService } from '../health.service';
  * Provides health check functionality for AI agents via MCP HTTP protocol.
  */
 export class HealthMcpHttpTool {
-  constructor(private readonly healthService: HealthService) {}
+  private readonly logger: ContextLoggerService;
+
+  constructor(
+    private readonly healthService: HealthService,
+    loggerService: ContextLoggerService,
+  ) {
+    this.logger = loggerService.child({ serviceContext: 'HealthMcpHttpTool' });
+  }
 
   /**
    * Get API health status tool.
@@ -17,6 +25,8 @@ export class HealthMcpHttpTool {
    * @returns CallToolResult with health status data
    */
   getApiHealth(_args: Record<string, unknown>): CallToolResult {
+    this.logger.trace('getApiHealth() called', { args: _args });
+    
     const healthData = this.healthService.getHealthStatus();
 
     return {

@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+
 import { HealthService } from '../../../modules/health/health.service';
 
 /**
@@ -55,6 +57,12 @@ export interface TransportDependencies {
    * Required by HTTP and SSE transports for resource URIs.
    */
   appConfig?: AppConfig;
+
+  /**
+   * Configuration service for accessing environment variables and settings.
+   * Required by transports that need to create logger services.
+   */
+  configService?: ConfigService;
 
   // Future services can be added here as needed:
   // The factory signature never changes - just extend this interface!

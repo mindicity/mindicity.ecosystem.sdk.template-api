@@ -252,9 +252,11 @@ describe('McpServerService', () => {
         host: mockMcpConfig.host,
         serverName: mockMcpConfig.serverName,
         serverVersion: mockMcpConfig.serverVersion,
+        basePath: '/mcapi/project/mcp',
       }, {
         healthService: mockHealthService,
         appConfig: mockAppConfig,
+        configService: expect.any(Object),
       });
       expect(mockTransport.connect).toHaveBeenCalled();
     });
@@ -454,9 +456,11 @@ describe('McpServerService', () => {
         host: httpConfig.host,
         serverName: httpConfig.serverName,
         serverVersion: httpConfig.serverVersion,
+        basePath: '/mcapi/project/mcp',
       }, {
         healthService: mockHealthService,
         appConfig: mockAppConfig,
+        configService: expect.any(Object),
       });
       expect(httpTransport.connect).toHaveBeenCalled();
       expect(loggerService.info).toHaveBeenCalledWith('MCP server connected and ready for AI agent connections', {
@@ -512,9 +516,11 @@ describe('McpServerService', () => {
         host: sseConfig.host,
         serverName: sseConfig.serverName,
         serverVersion: sseConfig.serverVersion,
+        basePath: '/mcapi/project/mcp',
       }, {
         healthService: mockHealthService,
         appConfig: mockAppConfig,
+        configService: expect.any(Object),
       });
       expect(sseTransport.connect).toHaveBeenCalled();
       expect(loggerService.info).toHaveBeenCalledWith('MCP server connected and ready for AI agent connections', {

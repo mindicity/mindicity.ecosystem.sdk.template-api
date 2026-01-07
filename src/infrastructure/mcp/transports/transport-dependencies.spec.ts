@@ -8,6 +8,7 @@ import {
 
 describe('TransportDependencies', () => {
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockConfigService: any;
 
   beforeEach(() => {
     mockHealthService = {
@@ -31,12 +32,20 @@ describe('TransportDependencies', () => {
         version: '1.0.0',
       }),
     } as any;
+
+    mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'app') return { apiPrefix: '/mcapi', apiScopePrefix: '/test' };
+        return null;
+      }),
+    };
   });
 
   describe('createTransportDependencies', () => {
     it('should create dependencies with healthService', () => {
       const dependencies = createTransportDependencies({
         healthService: mockHealthService,
+        configService: mockConfigService,
       });
 
       expect(dependencies).toBeDefined();

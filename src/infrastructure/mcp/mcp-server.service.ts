@@ -92,7 +92,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     this.mcpConfig = this.configService.get<McpConfig>('mcp')!;
     
     // Initialize MCP tools
-    this.healthMcpHttpTool = new HealthMcpHttpTool(this.healthService);
+    this.healthMcpHttpTool = new HealthMcpHttpTool(this.healthService, loggerService);
     
     // Future MCP tools initialization:
     // this.userMcpHttpTool = new UserMcpHttpTool(this.userService);
@@ -155,6 +155,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     const dependencies = createTransportDependencies({
       healthService: this.healthService,
       appConfig,
+      configService: this.configService,
       // Future services can be added here without breaking existing code:
       // userService: this.userService,
       // notificationService: this.notificationService,
@@ -362,7 +363,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
       
       // Health module resources (openapi specs, health docs)
       if (uri.startsWith('doc://openapi') && uri.includes('/specs')) {
-        const healthResources = new HealthMcpResources(this.configService);
+        const healthResources = new HealthMcpResources(this.configService, this.logger);
         return healthResources.handleResourceRead(uri);
       }
       

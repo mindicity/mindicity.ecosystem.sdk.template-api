@@ -32,9 +32,9 @@ describe('Routes Configuration', () => {
       jest.isolateModules(() => {
         const { ROUTES: freshRoutes } = require('./routes.config');
 
-        expect(freshRoutes.HEALTH).toBe('health/project');
+        expect(freshRoutes.HEALTH).toBe('project/health');
         expect(freshRoutes.TEMPLATE).toBe('project/template');
-        expect(freshRoutes.DOCS).toBe('docs/project/swagger/ui');
+        expect(freshRoutes.DOCS).toBe('project/docs/swagger/ui');
       });
     });
 
@@ -44,9 +44,9 @@ describe('Routes Configuration', () => {
       jest.isolateModules(() => {
         const { ROUTES: freshRoutes } = require('./routes.config');
 
-        expect(freshRoutes.HEALTH).toBe('health/project');
+        expect(freshRoutes.HEALTH).toBe('project/health');
         expect(freshRoutes.TEMPLATE).toBe('project/template');
-        expect(freshRoutes.DOCS).toBe('docs/project/swagger/ui');
+        expect(freshRoutes.DOCS).toBe('project/docs/swagger/ui');
       });
     });
 
@@ -57,9 +57,9 @@ describe('Routes Configuration', () => {
         const { ROUTES: freshRoutes } = require('./routes.config');
 
         // Since .env file has APP_API_SCOPE_PREFIX=/project, it will be loaded
-        expect(freshRoutes.HEALTH).toBe('health/project');
+        expect(freshRoutes.HEALTH).toBe('project/health');
         expect(freshRoutes.TEMPLATE).toBe('project/template');
-        expect(freshRoutes.DOCS).toBe('docs/project/swagger/ui');
+        expect(freshRoutes.DOCS).toBe('project/docs/swagger/ui');
       });
     });
 
@@ -69,9 +69,9 @@ describe('Routes Configuration', () => {
       jest.isolateModules(() => {
         const { ROUTES: freshRoutes } = require('./routes.config');
 
-        expect(freshRoutes.HEALTH).toBe('health/api/v1/template');
+        expect(freshRoutes.HEALTH).toBe('api/v1/template/health');
         expect(freshRoutes.TEMPLATE).toBe('api/v1/template/template');
-        expect(freshRoutes.DOCS).toBe('docs/api/v1/template/swagger/ui');
+        expect(freshRoutes.DOCS).toBe('api/v1/template/docs/swagger/ui');
       });
     });
 
@@ -81,9 +81,9 @@ describe('Routes Configuration', () => {
       jest.isolateModules(() => {
         const { ROUTES: freshRoutes } = require('./routes.config');
 
-        expect(freshRoutes.HEALTH).toBe('health/project');
+        expect(freshRoutes.HEALTH).toBe('project/health');
         expect(freshRoutes.TEMPLATE).toBe('project/template');
-        expect(freshRoutes.DOCS).toBe('docs/project/swagger/ui');
+        expect(freshRoutes.DOCS).toBe('project/docs/swagger/ui');
       });
     });
   });

@@ -16,6 +16,7 @@ describe('HttpTransport', () => {
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockConfigService: any;
   let config: TransportConfig;
 
   beforeEach(() => {
@@ -57,9 +58,17 @@ describe('HttpTransport', () => {
       port: 3232,
     };
 
+    mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'app') return mockAppConfig;
+        return null;
+      }),
+    } as any;
+
     const dependencies = createTransportDependencies({
       healthService: mockHealthService,
       appConfig: mockAppConfig,
+      configService: mockConfigService,
     });
 
     transport = new HttpTransport(config, dependencies);
@@ -215,6 +224,7 @@ describe('HttpTransport', () => {
 
     it('should reject non-POST requests', () => {
       mockReq.method = 'GET';
+      mockReq.url = '/mcapi/test/mcp'; // Set the correct path to match basePath
       
       requestHandler(mockReq, mockRes);
 
@@ -224,6 +234,9 @@ describe('HttpTransport', () => {
 
     it('should handle POST requests with valid JSON', () => {
       const requestData = JSON.stringify({ method: 'initialize', id: 1 });
+      
+      mockReq.method = 'POST';
+      mockReq.url = '/mcapi/test/mcp'; // Set the correct path to match basePath
       
       mockReq.on.mockImplementation((event: string, handler: (data?: string) => void) => {
         if (event === 'data') {
@@ -241,6 +254,9 @@ describe('HttpTransport', () => {
 
     it('should handle invalid JSON in POST requests', () => {
       const invalidJson = 'invalid json';
+      
+      mockReq.method = 'POST';
+      mockReq.url = '/mcapi/test/mcp'; // Set the correct path to match basePath
       
       mockReq.on.mockImplementation((event: string, handler: (data?: string) => void) => {
         if (event === 'data') {
@@ -304,6 +320,25 @@ describe('HttpTransport', () => {
     });
 
     it('should handle errors during request processing', async () => {
+      const request = { method: 'invalid_method', id: 1 }; // Use a valid object but invalid method
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      // Set up the MCP server first
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 1,
+        error: {
+          code: -32601,
+          message: 'Method not implemented: invalid_method',
+        },
+      });
+    });
+
+    it('should handle null request gracefully', async () => {
       const request = null; // This will cause an error
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
@@ -330,6 +365,7 @@ describe('HttpTransport', () => {
       // Don't set mcpServerService - this should cause an error
       const freshDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        configService: mockConfigService,
       });
       const freshTransport = new HttpTransport(config, freshDependencies);
 
@@ -434,6 +470,7 @@ describe('HttpTransport', () => {
       const customDependencies = createTransportDependencies({
         healthService: mockHealthService,
         appConfig: customAppConfig,
+        configService: mockConfigService,
       });
       
       const customTransport = new HttpTransport(config, customDependencies);
@@ -509,6 +546,7 @@ describe('HttpTransport', () => {
     it('should accept valid dependencies', () => {
       const validDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        configService: mockConfigService,
       });
       
       expect(() => {
