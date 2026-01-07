@@ -270,6 +270,13 @@ export class {ModuleName}Service {
 
       const results = await this.databaseService.queryMany<{Entity}Data>(sql, params);
       
+      // ✅ CORRECT: Log business context only
+      this.logger.debug('retrieved {entities} for business operation', {
+        requestedBy: ContextUtil.getUserId(),
+        correlationId: ContextUtil.getCorrelationId(),
+        filterCriteria: query.status
+      });
+      
       return results;
     } catch (error) {
       this.logger.error('failed to retrieve {entities}', { 
@@ -307,6 +314,13 @@ export class {ModuleName}Service {
 
       const data = await this.databaseService.queryMany<{Entity}Data>(sql, params);
       
+      // ✅ CORRECT: Log business pagination context, NOT query results
+      this.logger.debug('paginated {entities} retrieved', {
+        requestedBy: ContextUtil.getUserId(),
+        correlationId: ContextUtil.getCorrelationId(),
+        pagination: { limit: query.limit, offset: query.offset, total }
+      });
+      
       return {
         data,
         meta: {
@@ -327,6 +341,22 @@ export class {ModuleName}Service {
   }
 }
 ```
+
+**CRITICAL Service Logging Rules**:
+
+**✅ DO Log in Services**:
+- Method entry/exit with business parameters (trace level)
+- Business logic decisions and context (debug level)
+- User actions and business events (info level)
+- Business errors and validation failures (error level)
+- Correlation IDs and user context for traceability
+
+**❌ DON'T Log in Services**:
+- Database query results (DatabaseService logs everything)
+- SQL execution details (DatabaseService handles this)
+- Row counts or query performance (DatabaseService provides this)
+- Raw database responses (already logged centrally)
+- Infrastructure operation details (handled by respective services)
 
 ### DTOs vs Interfaces (MANDATORY Separation)
 
@@ -442,9 +472,22 @@ constructor(loggerService: ContextLoggerService) {
 
 ### Logging Levels (AI Assistant Guidelines)
 
-- **trace**: Method entry/exit with parameters
-- **debug**: Business logic steps with context
+- **trace**: Method entry/exit with parameters (business parameters only, not query results)
+- **debug**: Business logic steps with context (user actions, business decisions)
 - **error**: Exceptions with correlation ID
+
+**What NOT to Log in Services**:
+- ❌ Database query results (already logged by DatabaseService)
+- ❌ SQL execution details (already logged by DatabaseService)  
+- ❌ Row counts or query performance (already logged by DatabaseService)
+- ❌ Raw database responses (already logged by DatabaseService)
+- ❌ Infrastructure operation details (handled by respective services)
+
+**What TO Log in Services**:
+- ✅ Business method entry/exit with business parameters
+- ✅ Business logic decisions and context
+- ✅ User actions and business events
+- ✅ Business errors and validation failures
 
 ### MANDATORY Method Logging Rule
 
@@ -508,15 +551,17 @@ async findUsers(query: UserQuery): Promise<UserData[]> {
 **Infrastructure providers** (Database, MQTT, WebSocket) handle their own logging centrally.
 **Business services** log only business context, NOT infrastructure performance.
 
+**CRITICAL RULE**: Never log database query results in services - DatabaseService already logs all query operations, parameters, execution time, and row counts.
+
 ```typescript
 // ✅ CORRECT: Business service logging
 async findUsers(query: UserQuery): Promise<UserData[]> {
   this.logger.trace('findUsers()', { query });
   
-  // NO logging of SQL - DatabaseService handles this
+  // NO logging of SQL or results - DatabaseService handles this completely
   const results = await this.databaseService.queryMany(sql, params);
   
-  // Log business context only
+  // Log business context only, NOT query results
   this.logger.debug('users retrieved for business logic', { 
     requestedBy: ContextUtil.getUserId(),
     correlationId: ContextUtil.getCorrelationId()
@@ -530,8 +575,16 @@ async findUsers(): Promise<UserData[]> {
   this.logger.trace('executing SQL query', { sql }); // ❌ DatabaseService logs this
   const results = await this.databaseService.queryMany(sql);
   this.logger.debug('query returned rows', { count: results.length }); // ❌ DatabaseService logs this
+  this.logger.debug('query results', { results }); // ❌ NEVER log query results - already logged by DatabaseService
 }
 ```
+
+**Why This Rule Exists**:
+
+- **Performance**: Prevents duplicate logging of potentially large result sets
+- **Consistency**: All database operations logged in one place with consistent format
+- **Debugging**: DatabaseService provides comprehensive query logging with timing and parameters
+- **Security**: Avoids accidental logging of sensitive data in business services
 
 ## Code Quality & Standards (ENFORCED)
 
