@@ -90,13 +90,13 @@ When using this template to create a new API:
 
 The API includes a built-in Model Context Protocol (MCP) server for AI agent connectivity.
 
-### POST /mcp (HTTP Transport)
+### POST /mcapi/{scope}/mcp (HTTP Transport)
 
 MCP request endpoint for AI agents using HTTP transport.
 
 **Request:**
 ```http
-POST http://localhost:3235/mcp
+POST http://localhost:3235/mcapi/{scope}/mcp
 Content-Type: application/json
 
 {
@@ -126,13 +126,13 @@ Content-Type: application/json
 }
 ```
 
-### GET /mcp/events (SSE Transport)
+### GET /mcapi/{scope}/mcp/events (SSE Transport)
 
 Server-Sent Events endpoint for real-time MCP communication.
 
 **Request:**
 ```http
-GET http://localhost:3235/mcp/events
+GET http://localhost:3235/mcapi/{scope}/mcp/events
 Accept: text/event-stream
 ```
 
@@ -143,13 +143,13 @@ data: {"type":"connected","serverName":"nestjs-template-api","version":"1.0.0"}
 data: {"type":"initialized","capabilities":["tools","resources"]}
 ```
 
-### GET /mcp/info (SSE Transport)
+### GET /mcapi/{scope}/mcp/info (SSE Transport)
 
 Information endpoint for SSE transport configuration.
 
 **Request:**
 ```http
-GET http://localhost:3235/mcp/info
+GET http://localhost:3235/mcapi/{scope}/mcp/info
 ```
 
 **Response:**
@@ -159,8 +159,8 @@ GET http://localhost:3235/mcp/info
   "version": "1.0.0",
   "transport": "sse",
   "endpoints": {
-    "events": "http://localhost:3235/mcp/events",
-    "requests": "http://localhost:3235/mcp"
+    "events": "http://localhost:3235/mcapi/{scope}/mcp/events",
+    "requests": "http://localhost:3235/mcapi/{scope}/mcp"
   }
 }
 ```

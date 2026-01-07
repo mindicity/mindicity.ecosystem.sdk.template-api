@@ -168,7 +168,7 @@ MCP_TRANSPORT=http
 MCP_HOST=localhost
 MCP_PORT=3235
 ```
-- **Endpoint**: `http://localhost:3235/mcp`
+- **Endpoint**: `http://localhost:3235/mcapi/{scope}/mcp`
 - **Features**: Complete tools and resources implementation (automatic for new modules)
 - **Use Case**: Production applications, MCP Inspector, full functionality
 
@@ -188,8 +188,8 @@ MCP_HOST=localhost
 MCP_PORT=3235
 ```
 - **Endpoints**: 
-  - SSE: `http://localhost:3235/mcp/events` (basic connectivity only)
-  - HTTP: `http://localhost:3235/mcp` (for tools and resources)
+  - SSE: `http://localhost:3235/mcapi/{scope}/mcp/events` (basic connectivity only)
+  - HTTP: `http://localhost:3235/mcapi/{scope}/mcp` (for tools and resources)
 - **Features**: Basic initialization only, redirects to HTTP for functionality
 - **Use Case**: Real-time events (when explicitly required)
 
@@ -289,7 +289,7 @@ MCP_PORT=3235
 ```
 
 **Endpoints:**
-- `POST http://localhost:3235/mcp` - MCP request endpoint
+- `POST http://localhost:3235/mcapi/{scope}/mcp` - MCP request endpoint
 
 **Use Cases:**
 - Web-based AI agents
@@ -308,9 +308,9 @@ MCP_PORT=3235
 ```
 
 **Endpoints:**
-- `GET http://localhost:3235/mcp/events` - SSE event stream
-- `POST http://localhost:3235/mcp` - MCP request endpoint
-- `GET http://localhost:3235/mcp/info` - Server information
+- `GET http://localhost:3235/mcapi/{scope}/mcp/events` - SSE event stream
+- `POST http://localhost:3235/mcapi/{scope}/mcp` - MCP request endpoint
+- `GET http://localhost:3235/mcapi/{scope}/mcp/info` - Server information
 
 **Use Cases:**
 - Real-time web applications
@@ -968,9 +968,9 @@ const sseTransport = {
   limitations: 'Tools and resources redirect to HTTP transport',
   realTimeEvents: true,
   endpoints: {
-    events: 'http://localhost:3235/mcp/events',
-    requests: 'http://localhost:3235/mcp',
-    info: 'http://localhost:3235/mcp/info'
+    events: 'http://localhost:3235/mcapi/{scope}/mcp/events',
+    requests: 'http://localhost:3235/mcapi/{scope}/mcp',
+    info: 'http://localhost:3235/mcapi/{scope}/mcp/info'
   }
 };
 ```

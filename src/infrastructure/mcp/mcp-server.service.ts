@@ -12,6 +12,7 @@ import { CallToolResult ,
 
 import { ContextLoggerService } from '../../common/services/context-logger.service';
 import { McpConfig } from '../../config/mcp.config';
+import { ROUTES } from '../../config/routes.config';
 import { HealthService } from '../../modules/health/health.service';
 import { HealthMcpHttpTool, HealthMcpResources } from '../../modules/health/mcp';
 
@@ -161,12 +162,17 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
       // databaseService: this.databaseService,
     });
 
+    // Build MCP base path using routes configuration
+    const apiPrefix = appConfig?.apiPrefix || '/mcapi';
+    const mcpBasePath = `${apiPrefix}/${ROUTES.MCP}`;
+
     this.transport = TransportFactory.createTransport({
       transport: this.mcpConfig.transport,
       port: this.mcpConfig.port,
       host: this.mcpConfig.host,
       serverName: this.mcpConfig.serverName,
       serverVersion: this.mcpConfig.serverVersion,
+      basePath: mcpBasePath,
     }, dependencies);
 
     // Create MCP server

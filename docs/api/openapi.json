@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.0",
   "paths": {
-    "/mcapi/health/project/ping": {
+    "/mcapi/project/health/ping": {
       "get": {
         "operationId": "HealthController_ping",
         "parameters": [],
@@ -23,7 +23,7 @@
         ]
       }
     },
-    "/mcapi/health/project/status": {
+    "/mcapi/project/health/status": {
       "get": {
         "operationId": "HealthController_status",
         "parameters": [],

@@ -37,4 +37,5 @@ export interface TransportConfig {
   host?: string;
   serverName: string;
   serverVersion: string;
+  basePath?: string; // Base path for HTTP/SSE endpoints (e.g., '/mcapi/scope/mcp')
 }

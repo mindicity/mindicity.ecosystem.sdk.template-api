@@ -25,6 +25,7 @@ describe('HttpTransport', () => {
       host: 'localhost',
       serverName: 'test-server',
       serverVersion: '1.0.0',
+      basePath: '/mcapi/test/mcp',
     };
 
     mockHealthService = {
@@ -167,7 +168,7 @@ describe('HttpTransport', () => {
           port: config.port,
           serverName: config.serverName,
           version: config.serverVersion,
-          endpoint: `http://${config.host}:${config.port}/mcp`,
+          endpoint: `http://${config.host}:${config.port}${config.basePath}`,
         },
       });
     });

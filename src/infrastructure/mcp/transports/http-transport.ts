@@ -81,6 +81,20 @@ export class HttpTransport implements McpTransport {
         return;
       }
 
+      // Check if the request path matches the configured MCP base path
+      const requestPath = req.url || '';
+      const expectedPath = this.config.basePath || '/mcp';
+      
+      if (!requestPath.startsWith(expectedPath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          error: 'Not found',
+          message: `MCP endpoint available at ${expectedPath}`,
+          requestedPath: requestPath
+        }));
+        return;
+      }
+
       if (req.method !== 'POST') {
         res.writeHead(405, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Method not allowed' }));
@@ -156,6 +170,7 @@ export class HttpTransport implements McpTransport {
    * @returns Transport type, host, port, and endpoint information
    */
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
+    const basePath = this.config.basePath || '/mcp';
     return {
       type: 'http',
       details: {
@@ -163,7 +178,7 @@ export class HttpTransport implements McpTransport {
         port: this.config.port,
         serverName: this.config.serverName,
         version: this.config.serverVersion,
-        endpoint: `http://${this.config.host}:${this.config.port}/mcp`,
+        endpoint: `http://${this.config.host}:${this.config.port}${basePath}`,
       },
     };
   }

@@ -195,17 +195,20 @@ export async function bootstrap(): Promise<void> {
   if (mcpConfig?.enabled) {
     let transportInfo: string;
     const mcpUrls: string[] = [];
+    
+    // Get MCP base path from routes configuration
+    const mcpBasePath = `${apiPrefix}/${ROUTES.MCP}`;
 
     switch (mcpConfig.transport) {
       case 'http':
         transportInfo = `http transport (${mcpConfig.host}:${mcpConfig.port})`;
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}`);
         break;
       case 'sse':
         transportInfo = `sse transport (${mcpConfig.host}:${mcpConfig.port})`;
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp/events`);
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp/info`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}/events`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}/info`);
         break;
       default:
         // This should never happen due to Zod validation, but TypeScript requires it

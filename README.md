@@ -1218,7 +1218,7 @@ MCP resources follow semantic URI schemes:
 
 **For Web Clients (HTTP):**
 ```javascript
-const response = await fetch('http://localhost:3235/mcp', {
+const response = await fetch('http://localhost:3235/mcapi/scope/mcp', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -1232,7 +1232,7 @@ const response = await fetch('http://localhost:3235/mcp', {
 
 **For Real-time Web Apps (SSE):**
 ```javascript
-const eventSource = new EventSource('http://localhost:3235/mcp/events');
+const eventSource = new EventSource('http://localhost:3235/mcapi/scope/mcp/events');
 eventSource.addEventListener('connected', (event) => {
   console.log('Connected to MCP server:', JSON.parse(event.data));
 });

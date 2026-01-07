@@ -60,7 +60,7 @@ src/
 - ✅ Full test coverage (unit and integration tests)
 
 **Endpoints**:
-- `GET /mcapi/health/ping` - Basic health check
+- `GET /mcapi/{scope}/health/ping` - Basic health check
 - Returns: `{ "status": "ok", "version": "1.0.0" }`
 
 **MCP Integration**:

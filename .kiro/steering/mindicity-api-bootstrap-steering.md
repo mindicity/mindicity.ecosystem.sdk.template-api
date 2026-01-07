@@ -516,8 +516,8 @@ cp .env.example .env
 
 ### API Endpoints
 
-- **API Base**: `http://localhost:3232/mcapi/{project_name}`
-- **Swagger UI**: `http://localhost:3232/mcapi/docs/swagger/ui`
+- **API Base**: `http://localhost:3232/mcapi/{scope}/{project_name}`
+- **Swagger UI**: `http://localhost:3232/mcapi/{scope}/docs/swagger/ui`
 
 ## AI Assistant Execution Guidelines
 
