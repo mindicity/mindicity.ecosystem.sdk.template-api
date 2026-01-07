@@ -1,8 +1,6 @@
 import { createServer, Server as HttpServer, IncomingMessage, ServerResponse } from 'http';
 import { parse } from 'url';
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-
 import { McpTransport, TransportConfig } from './base-transport';
 import { OptionalTransportDependencies } from './transport-dependencies';
 
@@ -30,7 +28,6 @@ import { OptionalTransportDependencies } from './transport-dependencies';
  */
 export class SseTransport implements McpTransport {
   private httpServer: HttpServer | null = null;
-  private mcpServer: Server | null = null;
   private clients: Set<ServerResponse> = new Set();
 
   constructor(
@@ -48,8 +45,7 @@ export class SseTransport implements McpTransport {
    * @param server - MCP server instance to connect to
    * @returns Promise that resolves when HTTP server is listening
    */
-  connect(server: Server): Promise<void> {
-    this.mcpServer = server;
+  connect(_server: unknown): Promise<void> {
     
     this.httpServer = createServer((req, res) => {
       const parsedUrl = parse(req.url ?? '', true);
@@ -66,7 +62,7 @@ export class SseTransport implements McpTransport {
       }
 
       // Get base path from config, default to '/mcp'
-      const basePath = this.config.basePath || '/mcp';
+      const basePath = this.config.basePath ?? '/mcp';
       const eventsPath = `${basePath}/events`;
       const infoPath = `${basePath}/info`;
 
@@ -137,9 +133,9 @@ export class SseTransport implements McpTransport {
         port: this.config.port,
         serverName: this.config.serverName,
         version: this.config.serverVersion,
-        eventsEndpoint: `http://${this.config.host}:${this.config.port}${this.config.basePath || '/mcp'}/events`,
-        requestEndpoint: `http://${this.config.host}:${this.config.port}${this.config.basePath || '/mcp'}`,
-        infoEndpoint: `http://${this.config.host}:${this.config.port}${this.config.basePath || '/mcp'}/info`,
+        eventsEndpoint: `http://${this.config.host}:${this.config.port}${this.config.basePath ?? '/mcp'}/events`,
+        requestEndpoint: `http://${this.config.host}:${this.config.port}${this.config.basePath ?? '/mcp'}`,
+        infoEndpoint: `http://${this.config.host}:${this.config.port}${this.config.basePath ?? '/mcp'}/info`,
         activeConnections: this.clients.size,
       },
     };
@@ -224,7 +220,7 @@ export class SseTransport implements McpTransport {
    * @private
    */
   private handleInfoRequest(res: ServerResponse): void {
-    const basePath = this.config.basePath || '/mcp';
+    const basePath = this.config.basePath ?? '/mcp';
     const info = {
       serverName: this.config.serverName,
       version: this.config.serverVersion,
@@ -309,7 +305,7 @@ export class SseTransport implements McpTransport {
         message: `Method '${req.method}' not supported in SSE transport. Use HTTP transport for tools and resources.`,
         data: {
           supportedMethods: ['initialize'],
-          recommendation: `Use HTTP transport at the same host:port${this.config.basePath || '/mcp'} for full MCP functionality`,
+          recommendation: `Use HTTP transport at the same host:port${this.config.basePath ?? '/mcp'} for full MCP functionality`,
         },
       },
     };

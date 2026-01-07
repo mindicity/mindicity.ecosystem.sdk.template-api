@@ -165,7 +165,7 @@ export class McpServerService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Build MCP base path using routes configuration
-    const apiPrefix = appConfig?.apiPrefix || '/mcapi';
+    const apiPrefix = appConfig?.apiPrefix ?? '/mcapi';
     const mcpBasePath = `${apiPrefix}/${ROUTES.MCP}`;
 
     this.transport = TransportFactory.createTransport({

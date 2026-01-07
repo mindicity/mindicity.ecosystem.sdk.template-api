@@ -1,9 +1,9 @@
 import { createServer, Server as HttpServer } from 'http';
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 import { ContextLoggerService } from '../../../common/services/context-logger.service';
+
 import { McpTransport, TransportConfig } from './base-transport';
 import { OptionalTransportDependencies } from './transport-dependencies';
 
@@ -42,13 +42,12 @@ export class HttpTransport implements McpTransport {
   private static readonly jsonrpcVersion = '2.0';
   
   private httpServer: HttpServer | null = null;
-  private mcpServer: Server | null = null;
   private mcpServerService: IMcpServerService | null = null;
   private readonly logger: ContextLoggerService;
 
   constructor(
     private readonly config: TransportConfig,
-    private readonly dependencies: OptionalTransportDependencies,
+    dependencies: OptionalTransportDependencies,
   ) {
     // Initialize logger from dependencies - should always be available
     if (dependencies.loggerService) {
@@ -75,8 +74,7 @@ export class HttpTransport implements McpTransport {
    * @param server - MCP server instance to connect to
    * @returns Promise that resolves when HTTP server is listening
    */
-  connect(server: Server): Promise<void> {
-    this.mcpServer = server;
+  connect(_server: unknown): Promise<void> {
     
     this.httpServer = createServer((req, res) => {
       // Set CORS headers
@@ -91,8 +89,8 @@ export class HttpTransport implements McpTransport {
       }
 
       // Check if the request path matches the configured MCP base path
-      const requestPath = req.url || '';
-      const expectedPath = this.config.basePath || '/mcp';
+      const requestPath = req.url ?? '';
+      const expectedPath = this.config.basePath ?? '/mcp';
       
       if (!requestPath.startsWith(expectedPath)) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -179,7 +177,7 @@ export class HttpTransport implements McpTransport {
    * @returns Transport type, host, port, and endpoint information
    */
   getTransportInfo(): { type: string; details: Record<string, unknown> } {
-    const basePath = this.config.basePath || '/mcp';
+    const basePath = this.config.basePath ?? '/mcp';
     return {
       type: 'http',
       details: {

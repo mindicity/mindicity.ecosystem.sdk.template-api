@@ -1,5 +1,5 @@
-import { HealthService } from '../../../modules/health/health.service';
 import { ContextLoggerService } from '../../../common/services/context-logger.service';
+import { HealthService } from '../../../modules/health/health.service';
 
 import { HttpTransport } from './http-transport';
 import { SseTransport } from './sse-transport';

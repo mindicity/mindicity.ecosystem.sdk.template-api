@@ -1,7 +1,7 @@
 import { Server as HttpServer } from 'http';
 
-import { HealthService } from '../../../modules/health/health.service';
 import { ContextLoggerService } from '../../../common/services/context-logger.service';
+import { HealthService } from '../../../modules/health/health.service';
 
 import { TransportConfig } from './base-transport';
 import { SseTransport } from './sse-transport';
