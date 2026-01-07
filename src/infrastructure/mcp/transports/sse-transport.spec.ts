@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 
 import { HealthService } from '../../../modules/health/health.service';
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 
 import { TransportConfig } from './base-transport';
 import { SseTransport } from './sse-transport';
@@ -16,6 +17,7 @@ describe('SseTransport', () => {
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockLoggerService: jest.Mocked<ContextLoggerService>;
   let mockConfigService: any;
   let config: TransportConfig;
 
@@ -51,6 +53,17 @@ describe('SseTransport', () => {
       }),
     } as any;
 
+    mockLoggerService = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      setContext: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    } as any;
+
     const mockAppConfig = {
       apiPrefix: '/mcapi',
       apiScopePrefix: '/project',
@@ -67,6 +80,7 @@ describe('SseTransport', () => {
 
     const dependencies = createTransportDependencies({
       healthService: mockHealthService,
+      loggerService: mockLoggerService,
       appConfig: mockAppConfig,
       configService: mockConfigService,
     });
@@ -555,6 +569,7 @@ describe('SseTransport', () => {
     it('should accept valid dependencies when provided', () => {
       const validDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
         configService: mockConfigService,
       });
       

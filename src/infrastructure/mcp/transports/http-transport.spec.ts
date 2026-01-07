@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 
 import { HealthService } from '../../../modules/health/health.service';
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 
 import { TransportConfig } from './base-transport';
 import { HttpTransport } from './http-transport';
@@ -16,6 +17,7 @@ describe('HttpTransport', () => {
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockLoggerService: jest.Mocked<ContextLoggerService>;
   let mockConfigService: any;
   let config: TransportConfig;
 
@@ -51,6 +53,17 @@ describe('HttpTransport', () => {
       }),
     } as any;
 
+    mockLoggerService = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      setContext: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    } as any;
+
     const mockAppConfig = {
       apiPrefix: '/mcapi',
       apiScopePrefix: '/project',
@@ -67,6 +80,7 @@ describe('HttpTransport', () => {
 
     const dependencies = createTransportDependencies({
       healthService: mockHealthService,
+      loggerService: mockLoggerService,
       appConfig: mockAppConfig,
       configService: mockConfigService,
     });
@@ -365,6 +379,7 @@ describe('HttpTransport', () => {
       // Don't set mcpServerService - this should cause an error
       const freshDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
         configService: mockConfigService,
       });
       const freshTransport = new HttpTransport(config, freshDependencies);
@@ -469,6 +484,7 @@ describe('HttpTransport', () => {
       
       const customDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
         appConfig: customAppConfig,
         configService: mockConfigService,
       });
@@ -536,7 +552,9 @@ describe('HttpTransport', () => {
 
   describe('dependency validation', () => {
     it('should not require healthService for HttpTransport (delegates to McpServerService)', () => {
-      const invalidDependencies = {};
+      const invalidDependencies = {
+        loggerService: mockLoggerService,
+      };
       
       expect(() => {
         new HttpTransport(config, invalidDependencies);
@@ -546,6 +564,7 @@ describe('HttpTransport', () => {
     it('should accept valid dependencies', () => {
       const validDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
         configService: mockConfigService,
       });
       

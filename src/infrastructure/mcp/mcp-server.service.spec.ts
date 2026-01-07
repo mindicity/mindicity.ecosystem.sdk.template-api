@@ -255,6 +255,7 @@ describe('McpServerService', () => {
         basePath: '/mcapi/project/mcp',
       }, {
         healthService: mockHealthService,
+        loggerService: expect.any(Object),
         appConfig: mockAppConfig,
         configService: expect.any(Object),
       });
@@ -459,6 +460,7 @@ describe('McpServerService', () => {
         basePath: '/mcapi/project/mcp',
       }, {
         healthService: mockHealthService,
+        loggerService: expect.any(Object),
         appConfig: mockAppConfig,
         configService: expect.any(Object),
       });
@@ -519,6 +521,7 @@ describe('McpServerService', () => {
         basePath: '/mcapi/project/mcp',
       }, {
         healthService: mockHealthService,
+        loggerService: expect.any(Object),
         appConfig: mockAppConfig,
         configService: expect.any(Object),
       });
