@@ -87,8 +87,38 @@ src/modules/{your-api}/
 2. **NEVER** modify core infrastructure files
 3. **ALWAYS** implement MCP tools for HTTP transport (default)
 4. **ALWAYS** use `ContextLoggerService` instead of `console.log`
-5. **ALWAYS** use `SqlQueryBuilder` for simple queries
-6. **NEVER** add authentication guards (gateway handles auth)
+5. **ALWAYS** add TRACE logging at the start of every method with method name and parameters
+6. **ALWAYS** use `SqlQueryBuilder` for simple queries
+7. **NEVER** add authentication guards (gateway handles auth)
+
+### CRITICAL: Mandatory Method Logging (AI Assistant Must Enforce)
+
+**EVERY METHOD MUST START WITH TRACE LOGGING**:
+```typescript
+// ✅ MANDATORY: Every method must have this pattern
+methodName(param1: Type1, param2: Type2): ReturnType {
+  this.logger.trace('methodName()', { param1, param2 });
+  // Method implementation...
+}
+
+// ✅ MANDATORY: Methods without parameters
+getStatus(): Status {
+  this.logger.trace('getStatus()');
+  // Method implementation...
+}
+
+// ✅ MANDATORY: Static methods (use class name)
+static getDefinitions(): Definition[] {
+  console.log('ClassName.getDefinitions()'); // Only for static methods
+  // Method implementation...
+}
+```
+
+**AI Assistant Rules**:
+- **NEVER generate methods** without trace logging at the start
+- **ALWAYS include ALL parameters** in the trace log object
+- **USE EXACT method name** in the trace log string
+- **VERIFY every method** has trace logging before completing tasks
 
 ### File Naming Conventions
 
@@ -416,6 +446,63 @@ constructor(loggerService: ContextLoggerService) {
 - **debug**: Business logic steps with context
 - **error**: Exceptions with correlation ID
 
+### MANDATORY Method Logging Rule
+
+**CRITICAL REQUIREMENT**: Every method in every file MUST start with a TRACE log containing:
+- Method name
+- All input parameters
+
+**Pattern (MANDATORY)**:
+```typescript
+methodName(param1: Type1, param2: Type2): ReturnType {
+  this.logger.trace('methodName()', { param1, param2 });
+  
+  // Method implementation...
+}
+```
+
+**Examples**:
+```typescript
+// ✅ CORRECT: All methods must have trace logging
+async findUsers(query: UserQuery): Promise<UserData[]> {
+  this.logger.trace('findUsers()', { query });
+  // Implementation...
+}
+
+async createUser(userData: CreateUserData): Promise<UserData> {
+  this.logger.trace('createUser()', { userData });
+  // Implementation...
+}
+
+getHealthStatus(): HealthStatus {
+  this.logger.trace('getHealthStatus()');
+  // Implementation...
+}
+
+// ✅ CORRECT: Static methods use class name
+static getToolDefinitions(): ToolDefinition[] {
+  // Note: Static methods cannot use instance logger
+  // Use console.log only for static methods if absolutely necessary
+  console.log('HealthMcpHttpTool.getToolDefinitions()');
+  // Implementation...
+}
+
+// ❌ WRONG: Missing trace log
+async findUsers(query: UserQuery): Promise<UserData[]> {
+  // Missing: this.logger.trace('findUsers()', { query });
+  const results = await this.databaseService.queryMany(sql, params);
+  return results;
+}
+```
+
+**Rules**:
+- **EVERY method** must start with trace logging
+- **Include ALL parameters** in the trace log object
+- **Use method name exactly** as it appears in the function signature
+- **Static methods**: Use class name prefix (e.g., `ClassName.methodName()`)
+- **Private methods**: Follow same rule as public methods
+- **Constructors**: Log with `constructor()` and include all parameters
+
 ### Infrastructure vs Business Logging
 
 **Infrastructure providers** (Database, MQTT, WebSocket) handle their own logging centrally.
@@ -532,10 +619,19 @@ async findOne(id: string): Promise<UserData | null> {
 ```typescript
 // MCP Tool Class with comprehensive definitions
 export class {ModuleName}McpHttpTool {
-  constructor(private readonly {moduleName}Service: {ModuleName}Service) {}
+  private readonly logger: ContextLoggerService;
 
-  // Tool method implementation
-  {toolMethod}(_args: Record<string, unknown>): CallToolResult {
+  constructor(
+    private readonly {moduleName}Service: {ModuleName}Service,
+    loggerService: ContextLoggerService,
+  ) {
+    this.logger = loggerService.child({ serviceContext: '{ModuleName}McpHttpTool' });
+  }
+
+  // Tool method implementation - MANDATORY: Start with trace logging
+  {toolMethod}(args: Record<string, unknown>): CallToolResult {
+    this.logger.trace('{toolMethod}()', { args });
+    
     const data = this.{moduleName}Service.{serviceMethod}();
     return {
       content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
@@ -555,6 +651,9 @@ export class {ModuleName}McpHttpTool {
       examples: Array<{ scenario: string; expected_result: string }>;
     };
   }> {
+    // MANDATORY: Static methods use console.log for trace logging
+    console.log('{ModuleName}McpHttpTool.getToolDefinitions()');
+    
     return [
       {
         name: '{tool_name}',
@@ -699,6 +798,7 @@ static getToolDefinitions() {
 - [ ] **Controller**: DTOs only, `@ApiBearerAuth()` for docs, NO auth guards
 - [ ] **Service**: Interfaces only, child logger setup, `ContextUtil` usage
 - [ ] **Module**: Import infrastructure modules (DatabaseModule, etc.)
+- [ ] **TRACE LOGGING**: EVERY method MUST start with `this.logger.trace('methodName()', { params })`
 
 ### Infrastructure Extensions (Only If Needed)
 
@@ -721,6 +821,7 @@ static getToolDefinitions() {
 ### Code Quality Requirements
 
 - [ ] ESLint rules enforced (no `console.log`, use `??` not `||`, explicit return types)
+- [ ] **TRACE LOGGING**: Every method starts with trace log containing method name and parameters
 - [ ] Use SqlQueryBuilder for simple queries, raw SQL only for complex scenarios
 - [ ] Infrastructure logs in providers only, business logs in services only
 - [ ] Unit tests >80% coverage, E2E tests for all endpoints
