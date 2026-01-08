@@ -1,25 +1,29 @@
+# ----------------------------
+# Production stage
+# ----------------------------
+# Use base image from build argument
 ARG DOCKERFILE_NODE_BASE_IMAGE
-
 FROM ${DOCKERFILE_NODE_BASE_IMAGE} AS production
 
-ENV TZ="UTC"
+# Set environment variables
+ENV NODE_ENV=production \
+    TZ=UTC
 
+# Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Copy pre-built dist from pipeline artifacts
+# Copy pre-built distribution from pipeline artifacts
 COPY dist ./dist
 
 # Copy node_modules from pipeline cache
 COPY node_modules ./node_modules
 
-# Copy environment files
-COPY .env* ./
-
-# Install useful debugging tools
-RUN apt-get update -y && apt-get install -y \
+# Optional: install debugging/network tools
+# Using --no-install-recommends reduces image size
+RUN apt-get update && apt-get install -y --no-install-recommends \
     tcpdump \
     iputils-ping \
     telnet \
@@ -27,11 +31,14 @@ RUN apt-get update -y && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Set ownership and switch to non-root user
+# Set ownership of app folder and switch to non-root user
 RUN chown -R 1000:1000 /app
 
+# Switch to non-root user 
 USER 1000
 
+# Expose application ports
 EXPOSE 3232 3235
 
+# Start the application
 CMD ["node", "dist/main.js"]
