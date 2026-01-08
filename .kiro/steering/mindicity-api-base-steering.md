@@ -90,6 +90,52 @@ src/modules/{your-api}/
 5. **ALWAYS** add TRACE logging at the start of every method with method name and parameters
 6. **ALWAYS** use `SqlQueryBuilder` for simple queries
 7. **NEVER** add authentication guards (gateway handles auth)
+8. **ALWAYS** add `@ApiResponse` decorations to all controller endpoints
+
+### CRITICAL: Swagger Documentation Requirements (AI Assistant Must Enforce)
+
+**EVERY CONTROLLER ENDPOINT MUST HAVE COMPLETE SWAGGER DOCUMENTATION**:
+
+```typescript
+// ✅ MANDATORY: Every endpoint must have these decorations
+@Get('endpoint')
+@ApiOperation({ summary: 'Clear description of what this endpoint does' })
+@ApiResponse({
+  status: 200,
+  description: 'Description of successful response',
+  type: ResponseDto, // or [ResponseDto] for arrays
+})
+async methodName(@Query() query: QueryDto): Promise<ResponseDto[]> {
+  // Implementation...
+}
+
+// ✅ CORRECT: For array responses
+@ApiResponse({
+  status: 200,
+  description: 'List of entities',
+  type: [EntityResponseDto],
+})
+
+// ✅ CORRECT: For single object responses
+@ApiResponse({
+  status: 200,
+  description: 'Entity details',
+  type: EntityResponseDto,
+})
+
+// ✅ CORRECT: For paginated responses
+@ApiResponse({
+  status: 200,
+  description: 'Paginated list of entities',
+  type: EntityPaginatedResponseDto,
+})
+```
+
+**AI Assistant Rules**:
+- **NEVER generate controller methods** without `@ApiResponse` decoration
+- **ALWAYS include proper response type** (single object, array, or paginated)
+- **ALWAYS import `ApiResponse`** from `@nestjs/swagger`
+- **VERIFY every endpoint** has complete Swagger documentation before completing tasks
 
 ### CRITICAL: Mandatory Method Logging (AI Assistant Must Enforce)
 
@@ -107,9 +153,9 @@ getStatus(): Status {
   // Method implementation...
 }
 
-// ✅ MANDATORY: Static methods (use class name)
+// ✅ CORRECT: Static methods don't need trace logging
 static getDefinitions(): Definition[] {
-  console.log('ClassName.getDefinitions()'); // Only for static methods
+  // Static utility methods don't need logging
   // Method implementation...
 }
 ```
@@ -175,6 +221,11 @@ export class {ModuleName}Controller {
 
   @Get()
   @ApiOperation({ summary: 'Get all {entities}' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of {entities}',
+    type: [{Entity}ResponseDto],
+  })
   async findAll(@Query() query: Query{Entity}Dto): Promise<{Entity}ResponseDto[]> {
     this.logger.trace('findAll()', { query });
     
@@ -187,6 +238,11 @@ export class {ModuleName}Controller {
 
   @Get('paginated')
   @ApiOperation({ summary: 'Get paginated {entities}' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of {entities}',
+    type: {Entity}PaginatedResponseDto,
+  })
   async findAllPaginated(@Query() query: Query{Entity}PaginatedDto): Promise<{Entity}PaginatedResponseDto> {
     this.logger.trace('findAllPaginated()', { query });
     
@@ -414,6 +470,36 @@ export interface {Entity}PaginatedResponse {
 }
 ```
 
+### CRITICAL: ValidationPipe Configuration for nestjs-zod
+
+**MANDATORY**: When using nestjs-zod DTOs, you MUST use `ZodValidationPipe` instead of the standard NestJS `ValidationPipe`.
+
+**❌ WRONG: Standard ValidationPipe (causes validation errors)**:
+```typescript
+// This will cause "property should not exist" errors with Zod DTOs
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }),
+);
+```
+
+**✅ CORRECT: ZodValidationPipe for nestjs-zod compatibility**:
+```typescript
+import { ZodValidationPipe } from 'nestjs-zod';
+
+// Use ZodValidationPipe for proper Zod schema validation
+app.useGlobalPipes(new ZodValidationPipe());
+```
+
+**AI Assistant Rules**:
+- **NEVER use standard ValidationPipe** with nestjs-zod DTOs
+- **ALWAYS import and use ZodValidationPipe** from 'nestjs-zod'
+- **VERIFY ValidationPipe configuration** when debugging validation errors
+- **COMMON ERROR**: "property should not exist" indicates wrong ValidationPipe usage
+
 ## Database Query Rules
 
 ### SqlQueryBuilder (MANDATORY for Simple Queries)
@@ -522,11 +608,9 @@ getHealthStatus(): HealthStatus {
   // Implementation...
 }
 
-// ✅ CORRECT: Static methods use class name
+// ✅ CORRECT: Static methods don't need trace logging
 static getToolDefinitions(): ToolDefinition[] {
-  // Note: Static methods cannot use instance logger
-  // Use console.log only for static methods if absolutely necessary
-  console.log('HealthMcpHttpTool.getToolDefinitions()');
+  // Static utility methods don't need logging
   // Implementation...
 }
 
@@ -539,10 +623,10 @@ async findUsers(query: UserQuery): Promise<UserData[]> {
 ```
 
 **Rules**:
-- **EVERY method** must start with trace logging
+- **EVERY method** must start with trace logging (except static utility methods)
 - **Include ALL parameters** in the trace log object
 - **Use method name exactly** as it appears in the function signature
-- **Static methods**: Use class name prefix (e.g., `ClassName.methodName()`)
+- **Static methods**: Don't need trace logging as they are utility methods
 - **Private methods**: Follow same rule as public methods
 - **Constructors**: Log with `constructor()` and include all parameters
 
@@ -682,20 +766,54 @@ export class {ModuleName}McpHttpTool {
   }
 
   // Tool method implementation - MANDATORY: Start with trace logging
-  {toolMethod}(args: Record<string, unknown>): CallToolResult {
+  async {toolMethod}(args: Record<string, unknown>): Promise<CallToolResult> {
     this.logger.trace('{toolMethod}()', { args });
     
-    const data = this.{moduleName}Service.{serviceMethod}();
-    return {
-      content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
-    };
+    try {
+      // CRITICAL: Always validate input parameters first
+      if (args.requiredParam && typeof args.requiredParam !== 'string') {
+        throw new Error('requiredParam is required and must be a string');
+      }
+
+      // Build query/parameters from validated arguments
+      const query = {};
+      if (args.param1 && typeof args.param1 === 'string') {
+        query.param1 = args.param1;
+      }
+
+      // CRITICAL: Always await service calls for async operations
+      const data = await this.{moduleName}Service.{serviceMethod}(query);
+      
+      return {
+        content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+      };
+    } catch (error) {
+      // CRITICAL: Always handle errors gracefully with structured responses
+      this.logger.error('Error in {toolMethod}', { err: error, args });
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: 'Failed to execute {toolMethod}',
+              message: error instanceof Error ? error.message : 'Unknown error',
+            }, null, 2),
+          },
+        ],
+      };
+    }
   }
 
   // Comprehensive tool definitions with detailed descriptions
   static getToolDefinitions(): Array<{
     name: string;
     description: string;
-    inputSchema: object;
+    inputSchema: {
+      type: string;
+      properties: Record<string, unknown>;
+      required: string[];
+    };
     usage?: {
       purpose: string;
       when_to_use: string[];
@@ -704,8 +822,7 @@ export class {ModuleName}McpHttpTool {
       examples: Array<{ scenario: string; expected_result: string }>;
     };
   }> {
-    // MANDATORY: Static methods use console.log for trace logging
-    console.log('{ModuleName}McpHttpTool.getToolDefinitions()');
+    // CRITICAL: Static methods don't need trace logging
     
     return [
       {
@@ -719,8 +836,17 @@ Detailed explanation including:
 - Integration with other API operations`,
         inputSchema: {
           type: 'object',
-          properties: { /* parameter definitions */ },
-          required: [],
+          properties: {
+            param1: {
+              type: 'string',
+              description: 'Description of parameter 1',
+            },
+            param2: {
+              type: 'string',
+              description: 'Description of parameter 2',
+            },
+          },
+          required: [], // or ['param1'] if required
         },
         usage: {
           purpose: 'Clear statement of tool purpose and transport type',
@@ -758,6 +884,168 @@ Detailed explanation including:
 - [ ] Create MCP E2E tests for all tools
 
 **❌ FORBIDDEN:** Implementing business logic directly in MCP tools (must delegate to services)
+
+### CRITICAL: Common MCP Implementation Errors & Solutions
+
+**AI Assistant MUST avoid these common errors that cause runtime failures:**
+
+#### Error 1: Missing Async/Await in Tool Methods
+```typescript
+// ❌ WRONG: Missing async/await causes Promise<CallToolResult> instead of CallToolResult
+searchBuildings(args: Record<string, unknown>): CallToolResult {
+  const buildings = this.buildingsService.findAll(query); // Returns Promise!
+  return { content: [{ type: 'text', text: JSON.stringify(buildings, null, 2) }] };
+}
+
+// ✅ CORRECT: Proper async/await handling
+async searchBuildings(args: Record<string, unknown>): Promise<CallToolResult> {
+  const buildings = await this.buildingsService.findAll(query);
+  return { content: [{ type: 'text', text: JSON.stringify(buildings, null, 2) }] };
+}
+```
+
+#### Error 2: Missing Error Handling in Tool Methods
+```typescript
+// ❌ WRONG: No error handling causes unhandled promise rejections
+async searchBuildings(args: Record<string, unknown>): Promise<CallToolResult> {
+  const buildings = await this.buildingsService.findAll(query); // Can throw!
+  return { content: [{ type: 'text', text: JSON.stringify(buildings, null, 2) }] };
+}
+
+// ✅ CORRECT: Comprehensive error handling
+async searchBuildings(args: Record<string, unknown>): Promise<CallToolResult> {
+  try {
+    const buildings = await this.buildingsService.findAll(query);
+    return { content: [{ type: 'text', text: JSON.stringify(buildings, null, 2) }] };
+  } catch (error) {
+    this.logger.error('Error in searchBuildings', { err: error, args });
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          error: 'Failed to search buildings',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        }, null, 2),
+      }],
+    };
+  }
+}
+```
+
+#### Error 3: Missing Input Validation
+```typescript
+// ❌ WRONG: No input validation causes runtime errors
+async searchBuildingsSpatial(args: Record<string, unknown>): Promise<CallToolResult> {
+  const query = { polygon: args.polygon }; // args.polygon might be undefined or wrong type!
+  const buildings = await this.buildingsService.findAll(query);
+  return { content: [{ type: 'text', text: JSON.stringify(buildings, null, 2) }] };
+}
+
+// ✅ CORRECT: Proper input validation
+async searchBuildingsSpatial(args: Record<string, unknown>): Promise<CallToolResult> {
+  try {
+    // Validate required parameters
+    if (!args.polygon || typeof args.polygon !== 'string') {
+      throw new Error('polygon parameter is required and must be a valid WKT POLYGON string');
+    }
+
+    const query = { polygon: args.polygon };
+    const buildings = await this.buildingsService.findAll(query);
+    return { content: [{ type: 'text', text: JSON.stringify(buildings, null, 2) }] };
+  } catch (error) {
+    // Error handling...
+  }
+}
+```
+
+#### Error 4: Incorrect Tool Registration in McpServerService
+```typescript
+// ❌ WRONG: Missing await in async tool calls
+private async handleDynamicToolCall(toolName: string, args: unknown): Promise<CallToolResult> {
+  if (toolName === 'search_buildings_basic') {
+    return this.buildingsMcpHttpTool.searchBuildingsBasic(args as Record<string, unknown>); // Missing await!
+  }
+}
+
+// ✅ CORRECT: Proper async handling
+private async handleDynamicToolCall(toolName: string, args: unknown): Promise<CallToolResult> {
+  if (toolName === 'search_buildings_basic') {
+    return await this.buildingsMcpHttpTool.searchBuildingsBasic(args as Record<string, unknown>);
+  }
+}
+```
+
+#### Error 5: Incomplete Tool Schema Definitions
+```typescript
+// ❌ WRONG: Missing proper TypeScript typing for inputSchema
+static getToolDefinitions(): Array<{
+  name: string;
+  description: string;
+  inputSchema: object; // Too generic!
+}> {
+  return [{
+    inputSchema: { /* incomplete schema */ }
+  }];
+}
+
+// ✅ CORRECT: Proper TypeScript typing and complete schema
+static getToolDefinitions(): Array<{
+  name: string;
+  description: string;
+  inputSchema: {
+    type: string;
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+}> {
+  return [{
+    inputSchema: {
+      type: 'object',
+      properties: {
+        param1: { type: 'string', description: 'Parameter description' },
+      },
+      required: ['param1'], // Specify required parameters
+    },
+  }];
+}
+```
+
+#### Error 6: Missing Service Dependency Injection
+```typescript
+// ❌ WRONG: Service not added to TransportDependencies interface
+interface TransportDependencies {
+  healthService: HealthService;
+  // Missing: buildingsService: BuildingsService;
+}
+
+// ❌ WRONG: Service not injected in McpServerService constructor
+constructor(
+  private readonly healthService: HealthService,
+  // Missing: private readonly buildingsService: BuildingsService,
+) {}
+
+// ✅ CORRECT: Complete dependency injection setup
+interface TransportDependencies {
+  healthService: HealthService;
+  buildingsService: BuildingsService; // Added
+}
+
+constructor(
+  private readonly healthService: HealthService,
+  private readonly buildingsService: BuildingsService, // Added
+) {
+  // Initialize MCP tools with proper dependencies
+  this.buildingsMcpHttpTool = new BuildingsMcpHttpTool(this.buildingsService, loggerService);
+}
+```
+
+**CRITICAL CHECKLIST for AI Assistants:**
+- [ ] **ALWAYS use async/await** for service calls in MCP tool methods
+- [ ] **ALWAYS add try/catch** error handling in every tool method
+- [ ] **ALWAYS validate input parameters** before using them
+- [ ] **ALWAYS await async tool calls** in McpServerService handlers
+- [ ] **ALWAYS use proper TypeScript typing** for tool definitions
+- [ ] **ALWAYS inject services** in TransportDependencies and McpServerService
 
 ## MCP Tool Definition Best Practices
 
@@ -870,6 +1158,106 @@ static getToolDefinitions() {
 - [ ] **DEPENDENCY INJECTION**: Add service to `TransportDependencies` interface
 - [ ] **HANDLER REGISTRATION**: Register tools in `McpServerService` switch statement
 - [ ] **COMPREHENSIVE TESTING**: Add MCP E2E tests for all tools
+
+### CRITICAL: MCP Testing Best Practices
+
+**AI Assistant MUST implement comprehensive MCP tests to avoid runtime failures:**
+
+#### Unit Tests for MCP Tools
+```typescript
+describe('BuildingsMcpHttpTool', () => {
+  let tool: BuildingsMcpHttpTool;
+  let buildingsService: jest.Mocked<BuildingsService>;
+
+  beforeEach(async () => {
+    const mockBuildingsService = { findAll: jest.fn() };
+    const mockLogger = { child: jest.fn().mockReturnThis(), trace: jest.fn(), error: jest.fn() };
+    
+    // CRITICAL: Proper mocking setup
+    buildingsService = mockBuildingsService as jest.Mocked<BuildingsService>;
+    tool = new BuildingsMcpHttpTool(buildingsService, mockLogger as any);
+  });
+
+  it('should handle service errors gracefully', async () => {
+    // CRITICAL: Test error scenarios
+    const error = new Error('Database connection failed');
+    buildingsService.findAll.mockRejectedValue(error);
+
+    const result = await tool.searchBuildingsBasic({ cadastral_code: 'CAD001' });
+
+    // CRITICAL: Verify error response structure
+    expect((result.content[0] as any).text).toContain('Failed to search buildings');
+    expect((result.content[0] as any).text).toContain('Database connection failed');
+  });
+
+  it('should validate input parameters', async () => {
+    // CRITICAL: Test input validation
+    const result = await tool.searchBuildingsSpatial({});
+    expect((result.content[0] as any).text).toContain('polygon parameter is required');
+  });
+});
+```
+
+#### E2E Tests for MCP Integration
+```typescript
+describe('Buildings MCP Integration (e2e)', () => {
+  let app: INestApplication;
+  let databaseService: DatabaseService;
+
+  beforeEach(async () => {
+    // CRITICAL: Clean up test data before each test
+    await databaseService.queryNone('DELETE FROM public.buildings WHERE cadastral_code LIKE $1', ['TEST_%']);
+    
+    // CRITICAL: Insert test data for consistent testing
+    await databaseService.queryNone(`INSERT INTO public.buildings (...) VALUES (...)`);
+  });
+
+  afterEach(async () => {
+    // CRITICAL: Clean up test data after each test
+    await databaseService.queryNone('DELETE FROM public.buildings WHERE cadastral_code LIKE $1', ['TEST_%']);
+  });
+
+  it('should execute MCP tools via HTTP transport', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/mcapi/mcp/tools/call')
+      .send({
+        name: 'search_buildings_basic',
+        arguments: { cadastral_code: 'TEST_CAD001' }
+      })
+      .expect(200);
+
+    // CRITICAL: Verify response structure and content
+    expect(response.body.content).toBeDefined();
+    expect(response.body.content[0].type).toBe('text');
+    
+    const buildings = JSON.parse(response.body.content[0].text);
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0].cadastral_code).toBe('TEST_CAD001');
+  });
+
+  it('should handle invalid tool parameters', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/mcapi/mcp/tools/call')
+      .send({
+        name: 'search_buildings_spatial',
+        arguments: {} // Missing required polygon parameter
+      })
+      .expect(200);
+
+    const result = JSON.parse(response.body.content[0].text);
+    expect(result.error).toBe('Failed to search buildings spatially');
+    expect(result.message).toContain('polygon parameter is required');
+  });
+});
+```
+
+**CRITICAL Testing Checklist:**
+- [ ] **Unit tests** for all MCP tool methods with error scenarios
+- [ ] **Input validation tests** for all tool parameters
+- [ ] **Service error handling tests** with mocked failures
+- [ ] **E2E tests** for complete MCP tool execution via HTTP
+- [ ] **Database integration tests** with real data setup/cleanup
+- [ ] **Error response format validation** for consistent error handling
 
 ### Code Quality Requirements
 

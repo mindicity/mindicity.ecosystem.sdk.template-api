@@ -1,18 +1,18 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { IncomingMessage } from 'http';
 
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+
+import { ZodValidationPipe } from 'nestjs-zod';
 
 import fastifyCompress from '@fastify/compress';
 import helmet from '@fastify/helmet';
 import { config } from 'dotenv';
 import { Logger } from 'nestjs-pino';
 import { v4 as uuidv4 } from 'uuid';
-// import { patchNestJsSwagger } from 'nestjs-zod';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -117,18 +117,8 @@ export async function bootstrap(): Promise<void> {
       done();
     });
 
-  // Global validation pipe
-  // patchNestJsSwagger();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  // Global validation pipe - use ZodValidationPipe for nestjs-zod compatibility
+  app.useGlobalPipes(new ZodValidationPipe());
 
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter(app.get(Logger), configService));

@@ -357,6 +357,14 @@ Description: User management and authentication API
 
 ### Step 6: Content Replacement
 
+**Execute replacements in this optimized order to avoid conflicts:**
+
+1. **Configuration Files First**: package.json, app.module.ts, routes.config.ts
+2. **Module Files**: All .ts files in src/modules/{api_name}/
+3. **Test Files**: All .spec.ts files (including integration tests)
+4. **Documentation**: README.md, Docker files, .env.example
+5. **Quick Verification**: Run syntax check after each group
+
 **In all renamed module files**, replace these patterns:
 
 **Class Names**:
@@ -400,6 +408,13 @@ Description: User management and authentication API
 - Update mock data: `mockTemplate` → `mock{ApiNamePascal}`
 - Update API endpoints in tests: `'/mcapi/template'` → `'/mcapi/{api_name}'`
 - Update route constants: `ROUTES.TEMPLATE` → `ROUTES.{API_NAME_UPPER}`
+
+**CRITICAL - Integration Test Files**: Update configuration test expectations:
+
+- **`src/config/package.config.integration.spec.ts`**:
+  - Replace: `expect(packageInfo?.description).toContain('production-ready NestJS API template');`
+  - With: `expect(packageInfo?.description).toContain('{api_description}');`
+  - This prevents test failures due to outdated description expectations
 
 **E2E Test Files**: Special attention to endpoint testing:
 
@@ -497,11 +512,16 @@ Description: User management and authentication API
 1. **Install Dependencies**: `npm install`
 2. **Build Check**: `npm run build` (must succeed)
 3. **Lint Check**: `npm run lint` (must pass)
-4. **Test Verification**: `npm run test` (all tests must pass)
+4. **MANDATORY: Test Verification**: `npm run test` (all tests must pass)
+   - **CRITICAL**: If tests fail, check these common issues:
+     - `src/config/package.config.integration.spec.ts`: Verify description expectation matches new API description
+     - All test files use new API name in describe blocks and expectations
+     - All mock data variables renamed from `mockTemplate` to `mock{ApiNamePascal}`
+     - All hardcoded template strings in test assertions updated
 5. **Test Files Check**: Verify all `.spec.ts` files have been renamed and updated correctly
 6. **MCP Integration Check**: Verify MCP tools are implemented and working
 
-**Test Files Verification Checklist**:
+**Enhanced Test Files Verification Checklist**:
 
 - [ ] All test files renamed from `template.*` to `{api_name}.*`
 - [ ] Import paths updated in test files
@@ -510,6 +530,18 @@ Description: User management and authentication API
 - [ ] Test descriptions updated to use new API name
 - [ ] Mock data variables renamed appropriately
 - [ ] API endpoint paths updated in E2E tests (`'/template'` → `'/{api_name}'`)
+- [ ] **CRITICAL**: `src/config/package.config.integration.spec.ts` description expectation updated
+- [ ] **CRITICAL**: All hardcoded template strings in test assertions updated
+- [ ] **CRITICAL**: Route constants in tests updated (`ROUTES.TEMPLATE` → `ROUTES.{API_NAME_UPPER}`)
+
+**Common Test Failure Patterns and Solutions**:
+
+| Error Pattern | Root Cause | Solution |
+|---------------|------------|----------|
+| `Expected 'production-ready NestJS API template'` | Integration test expects old description | Update `package.config.integration.spec.ts` expectation |
+| `TemplateController is not defined` | Class reference not updated in test | Update all class references in test files |
+| `Cannot resolve module '../template/template.module'` | Import path not updated | Update all import paths in test files |
+| `Route '/mcapi/template' not found` | E2E test uses old endpoint | Update API endpoint paths in E2E tests |
 
 **E2E Test Configuration**:
 
@@ -625,6 +657,7 @@ The template includes proper E2E test configuration to avoid common hanging issu
 4. **Verify each step** - Check that files exist and contain expected content after each operation
 5. **Handle errors gracefully** - If any step fails, provide clear error messages and cleanup guidance
 6. **MANDATORY MCP INTEGRATION** - Always implement MCP tools for HTTP transport unless SSE explicitly requested
+7. **CRITICAL TEST VALIDATION** - Always verify test expectations are updated, especially integration tests
 
 ### Input Validation Patterns
 
@@ -660,6 +693,8 @@ The template includes proper E2E test configuration to avoid common hanging issu
 - **E2E test failures**: Check that all API endpoint paths in tests have been updated (`'/mcapi/template'` → `'/mcapi/{api_name}'`)
 - **Mock data errors**: Ensure all mock variables have been renamed (`mockTemplate` → `mock{ApiNamePascal}`)
 - **Describe block mismatches**: Verify all `describe()` blocks use the new API name
+- **Integration test failures**: Most common - check `src/config/package.config.integration.spec.ts` description expectation
+- **Route constant errors**: Verify `ROUTES.TEMPLATE` updated to `ROUTES.{API_NAME_UPPER}` in all test files
 
 ### Success Criteria
 
@@ -681,12 +716,44 @@ The bootstrap is successful when:
 2. **Validate User Input**: Confirm project_name, api_name, and description meet requirements
 3. **Generate Variables**: Create all derived variables (pascal case, upper case, etc.)
 4. **File Operations**: Execute renaming operations in exact order specified
-5. **Content Updates**: Replace all template references with new API names
+5. **Content Updates**: Replace all template references with new API names (follow optimized order)
 6. **Configuration Updates**: Update package.json, app.module.ts, routes.config.ts
-7. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
-8. **Environment Setup**: Create .env file from .env.example template
-9. **Verification**: Run build, lint, and test commands to ensure success
-10. **Git Initialization**: Initialize new Git repository for the project
-11. **Report Results**: Provide clear success/failure status with next steps
+7. **Test File Updates**: CRITICAL - Update all test files including integration test expectations
+8. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
+9. **Environment Setup**: Create .env file from .env.example template
+10. **Verification**: Run build, lint, and test commands to ensure success (use enhanced checklist)
+11. **Git Initialization**: Initialize new Git repository for the project
+12. **Report Results**: Provide clear success/failure status with next steps
 
 **CRITICAL**: Never proceed to the next step if the current step fails. Always fix issues before continuing.
+
+**ENHANCED ERROR HANDLING**: If tests fail during verification:
+1. Check the common failure patterns table above
+2. Verify all template strings have been replaced
+3. Ensure integration test expectations match new API description
+4. Validate all import paths and class references are updated
+
+## 🚀 Future Enhancement Suggestions
+
+### Automated Bootstrap Script (Future Consideration)
+
+Consider creating a bootstrap automation script that handles:
+- File renaming operations with regex patterns
+- Content replacement with validation
+- Test file updates including expectations
+- Comprehensive verification of all replacements
+- Rollback capability in case of errors
+
+This would eliminate manual errors and ensure 100% consistency across all bootstrap operations.
+
+### Performance Optimizations
+
+- **Parallel Processing**: File operations could be parallelized where safe
+- **Incremental Validation**: Validate each file group after replacement
+- **Smart Conflict Detection**: Detect potential naming conflicts before starting
+- **Template Versioning**: Support for different template versions and migration paths
+
+---
+
+**Last Updated**: Based on real-world bootstrap experience and error pattern analysis
+**Version**: Enhanced with integration test fixes and comprehensive error handling
