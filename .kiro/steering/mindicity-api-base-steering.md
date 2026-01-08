@@ -425,9 +425,10 @@ const Create{Entity}Schema = z.object({
 export class Create{Entity}Dto extends createZodDto(Create{Entity}Schema) {}
 
 // Query DTOs for pagination (when explicitly requested)
+// CRITICAL: Use z.coerce.number() for numeric querystring parameters
 const Query{Entity}PaginatedSchema = z.object({
-  limit: z.number().int().min(1).max(100).default(20),
-  offset: z.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
   status: z.enum(['active', 'inactive']).optional(),
 });
 export class Query{Entity}PaginatedDto extends createZodDto(Query{Entity}PaginatedSchema) {}
@@ -499,6 +500,52 @@ app.useGlobalPipes(new ZodValidationPipe());
 - **ALWAYS import and use ZodValidationPipe** from 'nestjs-zod'
 - **VERIFY ValidationPipe configuration** when debugging validation errors
 - **COMMON ERROR**: "property should not exist" indicates wrong ValidationPipe usage
+
+### CRITICAL: Zod Validation Rules for Query Parameters
+
+**MANDATORY**: When validating numeric parameters in querystring, you MUST use `z.coerce.number()` to handle string-to-number conversion.
+
+**Why Coerce is Required**:
+- HTTP querystring parameters are always strings (`?limit=20` → `"20"`)
+- `z.number()` will fail validation on string inputs
+- `z.coerce.number()` automatically converts valid numeric strings to numbers
+
+**✅ CORRECT: Querystring numeric parameters**:
+```typescript
+// Query DTOs - Use coerce for numeric querystring parameters
+const QueryEntitySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),    // ✅ Converts "20" → 20
+  offset: z.coerce.number().int().min(0).default(0),             // ✅ Converts "0" → 0
+  minPrice: z.coerce.number().positive().optional(),             // ✅ Converts "99.99" → 99.99
+  maxAge: z.coerce.number().int().max(120).optional(),           // ✅ Converts "25" → 25
+  status: z.enum(['active', 'inactive']).optional(),             // ✅ Strings don't need coerce
+});
+```
+
+**❌ WRONG: Using z.number() for querystring parameters**:
+```typescript
+// This will FAIL validation - querystring params are strings!
+const QueryEntitySchema = z.object({
+  limit: z.number().int().min(1).max(100).default(20),    // ❌ Fails: "20" is not number
+  offset: z.number().int().min(0).default(0),             // ❌ Fails: "0" is not number
+});
+```
+
+**✅ CORRECT: Request body numeric parameters (no coerce needed)**:
+```typescript
+// Request body DTOs - Numbers come as actual numbers from JSON
+const CreateEntitySchema = z.object({
+  price: z.number().positive(),           // ✅ JSON: {"price": 99.99}
+  quantity: z.number().int().min(1),      // ✅ JSON: {"quantity": 5}
+  name: z.string().min(1),                // ✅ JSON: {"name": "Product"}
+});
+```
+
+**AI Assistant Rules**:
+- **ALWAYS use `z.coerce.number()`** for numeric querystring parameters
+- **NEVER use `z.coerce.number()`** for request body parameters (JSON already typed)
+- **VERIFY parameter source**: Query params = coerce, Body params = no coerce
+- **COMMON ERROR**: Validation failures on numeric query params indicate missing coerce
 
 ## Database Query Rules
 
