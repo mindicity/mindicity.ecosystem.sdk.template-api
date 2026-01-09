@@ -40,13 +40,13 @@ Thumbs.db
 logs
 *.log
 
-# Test files and coverage
-test
-coverage
-*.spec.ts
-*.test.ts
-jest.config.js
-jest-e2e.config.js
+# Test files and coverage (it is necessary for pipeline caching)
+#test
+#coverage
+#*.spec.ts
+#*.test.ts
+#jest.config.js
+#jest-e2e.config.js
 
 # Documentation
 docs
