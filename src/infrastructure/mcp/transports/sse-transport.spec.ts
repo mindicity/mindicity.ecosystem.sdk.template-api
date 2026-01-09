@@ -140,7 +140,7 @@ describe('SseTransport', () => {
       
       mockServer.on.mockImplementation((event: string | symbol, handler: (...args: any[]) => void) => {
         if (event === 'error') {
-          // eslint-disable-next-line max-nested-callbacks
+           
           setTimeout(() => handler(error), 0);
         }
         return mockServer;

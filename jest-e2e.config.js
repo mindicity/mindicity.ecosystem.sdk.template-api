@@ -19,7 +19,6 @@ module.exports = {
   maxWorkers: 1,
   forceExit: true,
   detectOpenHandles: true,
-  verbose: true,
   testTimeout: 30000,
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   // E2E specific settings

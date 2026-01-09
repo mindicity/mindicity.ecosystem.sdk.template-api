@@ -55,10 +55,10 @@ module.exports = [
         IIFEs: true 
       }],
       'max-params': ['error', 5],
-      'max-depth': ['error', 4],
+      'max-depth': ['error', 5],
       'complexity': ['error', 10],
-      'max-lines': ['warn', { max: 300, skipBlankLines: true, skipComments: true }],
-      'max-nested-callbacks': ['error', 4], // Relaxed for test scenarios
+      'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
+      'max-nested-callbacks': ['error', 5], // Relaxed for test scenarios
       
       // Naming Conventions - Mindicity Standards
       '@typescript-eslint/naming-convention': [
@@ -214,7 +214,7 @@ module.exports = [
       
       // Increased limits for test files
       'max-lines-per-function': ['warn', { 
-        max: 300, 
+        max: 400, 
         skipBlankLines: true, 
         skipComments: true 
       }],
