@@ -228,7 +228,9 @@ export class HttpLoggingInterceptor implements NestInterceptor {
       statusCode: statusCode ?? response?.statusCode,
       contentLength,
       duration,
-      userAgent: request.headers['user-agent'],
+      userAgent: typeof request.headers['user-agent'] === 'string' 
+        ? request.headers['user-agent'] 
+        : undefined,
     };
 
     if (httpDetails === 'basic') {
@@ -264,22 +266,23 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const REDACTED = '[REDACTED]';
     const sanitized: Record<string, string> = {};
 
-    Object.entries(headers).forEach(([key, value]) => {
-      if (value === undefined) return;
+    for (const [key, value] of Object.entries(headers)) {
+      if (value === undefined) continue;
 
       const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
 
       // Remove or redact sensitive headers
-      if (key.toLowerCase() === 'authorization') {
-        sanitized[key] = REDACTED;
-      } else if (key.toLowerCase() === 'cookie') {
-        sanitized[key] = REDACTED;
-      } else if (key.toLowerCase() === 'x-api-key') {
-        sanitized[key] = REDACTED;
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === 'authorization') {
+        Object.assign(sanitized, { [key]: REDACTED });
+      } else if (lowerKey === 'cookie') {
+        Object.assign(sanitized, { [key]: REDACTED });
+      } else if (lowerKey === 'x-api-key') {
+        Object.assign(sanitized, { [key]: REDACTED });
       } else {
-        sanitized[key] = stringValue;
+        Object.assign(sanitized, { [key]: stringValue });
       }
-    });
+    }
 
     return sanitized;
   }
@@ -293,18 +296,19 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const REDACTED = '[REDACTED]';
     const sanitized: Record<string, string> = {};
 
-    Object.entries(headers).forEach(([key, value]) => {
-      if (value === undefined) return;
+    for (const [key, value] of Object.entries(headers)) {
+      if (value === undefined) continue;
 
       const stringValue = Array.isArray(value) ? value.join(', ') : String(value);
 
       // Remove sensitive response headers if any
-      if (key.toLowerCase() === 'set-cookie') {
-        sanitized[key] = REDACTED;
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === 'set-cookie') {
+        Object.assign(sanitized, { [key]: REDACTED });
       } else {
-        sanitized[key] = stringValue;
+        Object.assign(sanitized, { [key]: stringValue });
       }
-    });
+    }
 
     return sanitized;
   }

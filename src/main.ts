@@ -35,7 +35,8 @@ export async function bootstrap(): Promise<void> {
     trustProxy: true,
     genReqId: (req: IncomingMessage): string => {
       // Use existing x-correlation-id header if present, otherwise generate new UUID
-      return (req.headers['x-correlation-id'] as string) ?? uuidv4();
+      const correlationHeader = req.headers['x-correlation-id'];
+      return (typeof correlationHeader === 'string' ? correlationHeader : undefined) ?? uuidv4();
     },
   });
 
@@ -211,9 +212,25 @@ export async function bootstrap(): Promise<void> {
     // Log MCP URLs for HTTP/SSE transports
     if (mcpUrls.length > 0) {
       mcpUrls.forEach((url, index) => {
-        const label = mcpConfig.transport === 'sse' 
-          ? ['📡 MCP Events', '📨 MCP Requests', 'ℹ️  MCP Info'][index]
-          : '📨 MCP Endpoint';
+        let label: string;
+        if (mcpConfig.transport === 'sse') {
+          switch (index) {
+            case 0:
+              label = '📡 MCP Events';
+              break;
+            case 1:
+              label = '📨 MCP Requests';
+              break;
+            case 2:
+              label = 'ℹ️  MCP Info';
+              break;
+            default:
+              label = '📨 MCP Endpoint';
+              break;
+          }
+        } else {
+          label = '📨 MCP Endpoint';
+        }
         logger.log(`   ${label}: ${url}`);
       });
     }

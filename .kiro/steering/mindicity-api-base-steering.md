@@ -736,6 +736,110 @@ const config = userConfig ?? defaultConfig;
 const pageSize = query.limit || 10;
 ```
 
+### CRITICAL: Object Injection Security Rules (AI Assistant Must Follow)
+
+**MANDATORY**: All dynamic property access must be properly typed to prevent Generic Object Injection Sink vulnerabilities.
+
+**❌ FORBIDDEN: Unsafe bracket notation access**:
+```typescript
+// These patterns trigger security/detect-object-injection warnings
+const value = obj[userInput];                    // ❌ Unsafe
+const header = req.headers[headerName];          // ❌ Unsafe
+const config = settings[configKey];              // ❌ Unsafe
+const label = labels[index];                     // ❌ Unsafe
+```
+
+**✅ REQUIRED: Safe property access patterns**:
+```typescript
+// Method 1: Type-safe property access with proper validation
+const headerValue = req.headers['x-correlation-id'];
+const safeValue = typeof headerValue === 'string' ? headerValue : undefined;
+
+// Method 2: Use const assertions for array access
+const labels = ['Label 1', 'Label 2', 'Label 3'] as const;
+const label = labels[index] ?? 'Default Label';
+
+// Method 3: Use toLowerCase() assignment to avoid repeated bracket access
+const lowerKey = key.toLowerCase();
+if (lowerKey === 'authorization') {
+  // Safe to use lowerKey
+}
+
+// Method 4: Use Object.hasOwnProperty or 'in' operator for validation
+if (Object.prototype.hasOwnProperty.call(obj, key)) {
+  const value = obj[key as keyof typeof obj];
+}
+
+// Method 5: Use Record types with proper key validation
+interface SafeConfig {
+  [key: string]: string | undefined;
+}
+const config: SafeConfig = settings;
+const value = config[key]; // Safe with proper typing
+```
+
+**AI Assistant Rules**:
+- **NEVER use bracket notation** without proper type validation
+- **ALWAYS validate property existence** before dynamic access
+- **USE const assertions** for array access with indices
+- **ASSIGN toLowerCase() results** to variables instead of repeated bracket access
+- **VERIFY all dynamic property access** is properly typed and validated
+
+**Common Fixes for Object Injection Issues**:
+```typescript
+// ❌ WRONG: Direct bracket access
+const userAgent = request.headers['user-agent'];
+
+// ✅ CORRECT: Type-safe access
+const userAgent = typeof request.headers['user-agent'] === 'string' 
+  ? request.headers['user-agent'] 
+  : undefined;
+
+// ❌ WRONG: Dynamic array access
+const label = labels[index];
+
+// ✅ CORRECT: Safe array access with switch statement
+let label: string;
+switch (index) {
+  case 0:
+    label = 'First Label';
+    break;
+  case 1:
+    label = 'Second Label';
+    break;
+  default:
+    label = 'Default Label';
+    break;
+}
+
+// ❌ WRONG: Dynamic object property assignment
+sanitized[key] = value;
+
+// ✅ CORRECT: Use Object.assign for dynamic property assignment
+Object.assign(sanitized, { [key]: value });
+
+// ❌ WRONG: Repeated bracket access in conditions
+if (key.toLowerCase() === 'auth') {
+  sanitized[key] = '[REDACTED]';
+}
+
+// ✅ CORRECT: Assign to variable first
+const lowerKey = key.toLowerCase();
+if (lowerKey === 'auth') {
+  Object.assign(sanitized, { [key]: '[REDACTED]' });
+}
+
+// ❌ WRONG: forEach with dynamic property access
+Object.entries(headers).forEach(([key, value]) => {
+  sanitized[key] = processValue(value);
+});
+
+// ✅ CORRECT: for...of loop with Object.assign
+for (const [key, value] of Object.entries(headers)) {
+  Object.assign(sanitized, { [key]: processValue(value) });
+}
+```
+
 ### Security Rules (FORBIDDEN)
 
 ```typescript
