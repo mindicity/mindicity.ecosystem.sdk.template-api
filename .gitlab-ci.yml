@@ -100,7 +100,7 @@ test-unit:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: test.coverage/cobertura-coverage.xml
+        path: test/coverage/cobertura-coverage.xml
   allow_failure: true
 
 ts-lint:

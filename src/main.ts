@@ -6,12 +6,12 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
-import { ZodValidationPipe } from 'nestjs-zod';
 
 import fastifyCompress from '@fastify/compress';
 import helmet from '@fastify/helmet';
 import { config } from 'dotenv';
 import { Logger } from 'nestjs-pino';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { v4 as uuidv4 } from 'uuid';
 
 import { AppModule } from './app.module';
