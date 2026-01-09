@@ -4,10 +4,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build outputs
-dist
-build
-*.tsbuildinfo
+# Build outputs (it is necessary for pipeline caching)
+#dist
+#build
+#*.tsbuildinfo
 
 # Environment files (copy explicitly in Dockerfile)
 .env.local

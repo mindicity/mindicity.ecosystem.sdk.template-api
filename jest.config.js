@@ -26,7 +26,7 @@ module.exports = {
   maxWorkers: 1,
   forceExit: true,
   detectOpenHandles: true,
-  verbose: true,
+  verbose: false,
   testTimeout: 30000,
   coverageThreshold: {
     global: {
