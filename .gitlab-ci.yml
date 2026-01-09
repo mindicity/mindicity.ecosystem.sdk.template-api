@@ -91,6 +91,7 @@ test-unit:
     - /^release\/*/
     - /^hotfix\/*/
   script:
+    - cp -nu .env.example .env
     - npm run test
   artifacts:
     when: always
