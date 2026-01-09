@@ -1,14 +1,47 @@
 ---
-inclusion: always
+inclusion: manual
 ---
 
 # Mindicity API Bootstrap Guide
 
-**CRITICAL**: This document guides AI assistants in bootstrapping new Mindicity API projects from the template repository. All new API projects MUST follow this process.
+## 🚨 MANDATORY: Every New API Project MUST Start Here
 
-## Overview
+**CRITICAL REQUIREMENT**: ALL new Mindicity API projects MUST begin by bootstrapping from the official template repository. This is not optional - it is the ONLY supported way to create new API projects.
 
-This is a template-based NestJS API project that serves as the foundation for all Mindicity APIs. When creating new API projects, the AI assistant must rename the template module to match the new API's purpose while preserving all architectural patterns and infrastructure.
+### Why Bootstrap is Mandatory
+
+- **Production-Ready Foundation**: Template includes pre-configured infrastructure (database, logging, MCP, testing)
+- **Consistent Architecture**: All APIs follow the same proven patterns and structure
+- **Security & Best Practices**: Built-in security configurations and development standards
+- **Future Updates**: Template updates can be applied without breaking your API modules
+- **Team Efficiency**: Developers know exactly where to find components across all APIs
+
+### What Happens Without Bootstrap
+
+❌ **FORBIDDEN**: Creating APIs from scratch or copying files manually will result in:
+- Missing critical infrastructure components
+- Inconsistent project structure
+- Security vulnerabilities
+- Incompatible with Mindicity ecosystem
+- No MCP integration for AI agents
+- Failed code reviews and deployment issues
+
+## 🎯 Bootstrap Process Overview
+
+**EVERY NEW API PROJECT MUST:**
+
+1. **Clone the official template repository** (mandatory first step)
+2. **Run the complete bootstrap process** to rename template → your API
+3. **Implement your business logic** in the designated module areas
+4. **Never modify core infrastructure** - only work in `src/modules/`
+
+**Template Repository (MANDATORY SOURCE)**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
+
+---
+
+## Detailed Implementation Guide
+
+This template-based NestJS API project serves as the foundation for all Mindicity APIs. When creating new API projects, the AI assistant must rename the template module to match the new API's purpose while preserving all architectural patterns and infrastructure.
 
 **AI Assistant Requirements:**
 
@@ -55,32 +88,59 @@ This is a template-based NestJS API project that serves as the foundation for al
 
 **IMPORTANT**: This separation ensures that when the template is updated with new features, security patches, or improvements, your API modules remain completely unaffected.
 
-## Template Repository
+## Template Repository (MANDATORY - NO EXCEPTIONS)
 
-**MANDATORY**: The template MUST be cloned from the official Mindicity template repository:
+**🚨 CRITICAL**: Every new API project MUST start by cloning this exact repository. There are no alternatives.
 
-**Repository URL**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
+**Official Template Repository**: `https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git`
 
-**Branch**: `main`
+**Branch**: `master` (always use latest stable version)
 
-**Clone Command**:
+**Why This Repository is Mandatory**:
+- Contains all required Mindicity infrastructure components
+- Pre-configured with security, logging, database, and MCP integration
+- Tested and validated architecture patterns
+- Consistent with all other Mindicity APIs
+- Required for ecosystem compatibility
+
+**FORBIDDEN Alternatives**:
+❌ Creating new NestJS projects from scratch
+❌ Using other NestJS templates or boilerplates  
+❌ Copying code from existing APIs manually
+❌ Starting with empty repositories
+
+**Clone Command (Execute This First)**:
 
 ```bash
-# Clone the template to the root of your project directory
-git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git .
+# Clone the template to a temporary directory
+git clone -b master https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
 
-# Remove template Git history (MANDATORY)
+# Move template contents to project root
+mv temp-template/* .
+mv temp-template/.* . 2>/dev/null || true
+
+# Remove temporary directory and template Git history
+rm -rf temp-template
 rm -rf .git
 ```
 
-**IMPORTANT**:
+**CRITICAL REQUIREMENTS**:
 
-- The `.` at the end clones the template directly into the current directory (project root)
-- Ensure you are in an empty directory before running the clone command
-- Always use the `main` branch as it contains the latest stable template version with all required infrastructure and patterns
+- **ALWAYS clone from the official repository** - no exceptions or alternatives
+- Clone to temporary directory first to avoid conflicts with existing files
+- Move all contents (including hidden files) to project root
+- Clean up temporary directory and template Git history
+- Always use the `master` branch as it contains the latest stable template version with all required infrastructure and patterns
 - **MANDATORY**: Remove the `.git` folder after cloning to eliminate template Git history
 - **CRITICAL**: If `.kiro` folder already exists, merge template `.kiro` content with existing configurations
 - You will initialize a new Git repository for your derived project later
+
+**Template Validation**: After cloning, verify these critical files exist:
+- `src/infrastructure/` (database, MCP, logging services)
+- `src/modules/template/` (template module to be renamed)
+- `.kiro/steering/` (development guidelines)
+- `package.json` with Mindicity dependencies
+- `nest-cli.json` and TypeScript configurations
 
 ## .kiro Folder Management
 
@@ -150,16 +210,31 @@ cp -r template/.kiro existing-project/
 
 ## Bootstrap Process
 
-### Step 1: Template Setup (MANDATORY)
+### Step 1: Template Setup (MANDATORY - FIRST STEP)
 
-**CRITICAL**: Before starting the bootstrap process, set up the template repository:
+**🚨 CRITICAL**: Before ANY other work, you MUST clone and set up the template repository. This is the foundation for all Mindicity APIs.
 
-1. **Clone Template Repository**:
+**MANDATORY FIRST ACTION**: Clone the official template repository:
+
+1. **Clone Template Repository** (REQUIRED):
 
    ```bash
-   # Ensure you are in an empty directory for your new project
-   git clone -b main https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git .
+   # MANDATORY: Clone the official Mindicity template repository
+   git clone -b master https://github.com/mindicity/mindicity.ecosystem.sdk.template-api.git temp-template
+   
+   # Move all template contents to project root
+   mv temp-template/* .
+   mv temp-template/.* . 2>/dev/null || true
+   
+   # Clean up temporary directory
+   rm -rf temp-template
    ```
+
+   **Verification**: After cloning, confirm these critical directories exist:
+   - `src/infrastructure/` (core services)
+   - `src/modules/template/` (template to rename)
+   - `.kiro/steering/` (development guidelines)
+   - `docs/` (documentation structure)
 
 2. **Merge .kiro Folder** (MANDATORY if .kiro already exists):
 
@@ -282,6 +357,14 @@ Description: User management and authentication API
 
 ### Step 6: Content Replacement
 
+**Execute replacements in this optimized order to avoid conflicts:**
+
+1. **Configuration Files First**: package.json, app.module.ts, routes.config.ts
+2. **Module Files**: All .ts files in src/modules/{api_name}/
+3. **Test Files**: All .spec.ts files (including integration tests)
+4. **Documentation**: README.md, Docker files, .env.example
+5. **Quick Verification**: Run syntax check after each group
+
 **In all renamed module files**, replace these patterns:
 
 **Class Names**:
@@ -325,6 +408,13 @@ Description: User management and authentication API
 - Update mock data: `mockTemplate` → `mock{ApiNamePascal}`
 - Update API endpoints in tests: `'/mcapi/template'` → `'/mcapi/{api_name}'`
 - Update route constants: `ROUTES.TEMPLATE` → `ROUTES.{API_NAME_UPPER}`
+
+**CRITICAL - Integration Test Files**: Update configuration test expectations:
+
+- **`src/config/package.config.integration.spec.ts`**:
+  - Replace: `expect(packageInfo?.description).toContain('production-ready NestJS API template');`
+  - With: `expect(packageInfo?.description).toContain('{api_description}');`
+  - This prevents test failures due to outdated description expectations
 
 **E2E Test Files**: Special attention to endpoint testing:
 
@@ -408,18 +498,30 @@ Description: User management and authentication API
 6. Add tool descriptions to `ListToolsRequestSchema`
 7. Create MCP E2E tests for all new tools
 
-### Step 9: Verification
+### Step 9: Environment Setup (MANDATORY)
+
+**CRITICAL**: Set up the development environment before verification:
+
+1. **Create Environment File**: `cp .env.example .env`
+2. **Configure Environment Variables**: Edit `.env` with your specific settings (database credentials, API keys, etc.)
+
+### Step 10: Verification
 
 **CRITICAL**: Run these commands to verify the bootstrap was successful:
 
 1. **Install Dependencies**: `npm install`
 2. **Build Check**: `npm run build` (must succeed)
 3. **Lint Check**: `npm run lint` (must pass)
-4. **Test Verification**: `npm run test` (all tests must pass)
+4. **MANDATORY: Test Verification**: `npm run test` (all tests must pass)
+   - **CRITICAL**: If tests fail, check these common issues:
+     - `src/config/package.config.integration.spec.ts`: Verify description expectation matches new API description
+     - All test files use new API name in describe blocks and expectations
+     - All mock data variables renamed from `mockTemplate` to `mock{ApiNamePascal}`
+     - All hardcoded template strings in test assertions updated
 5. **Test Files Check**: Verify all `.spec.ts` files have been renamed and updated correctly
 6. **MCP Integration Check**: Verify MCP tools are implemented and working
 
-**Test Files Verification Checklist**:
+**Enhanced Test Files Verification Checklist**:
 
 - [ ] All test files renamed from `template.*` to `{api_name}.*`
 - [ ] Import paths updated in test files
@@ -428,10 +530,36 @@ Description: User management and authentication API
 - [ ] Test descriptions updated to use new API name
 - [ ] Mock data variables renamed appropriately
 - [ ] API endpoint paths updated in E2E tests (`'/template'` → `'/{api_name}'`)
+- [ ] **CRITICAL**: `src/config/package.config.integration.spec.ts` description expectation updated
+- [ ] **CRITICAL**: All hardcoded template strings in test assertions updated
+- [ ] **CRITICAL**: Route constants in tests updated (`ROUTES.TEMPLATE` → `ROUTES.{API_NAME_UPPER}`)
+
+**Common Test Failure Patterns and Solutions**:
+
+| Error Pattern | Root Cause | Solution |
+|---------------|------------|----------|
+| `Expected 'production-ready NestJS API template'` | Integration test expects old description | Update `package.config.integration.spec.ts` expectation |
+| `TemplateController is not defined` | Class reference not updated in test | Update all class references in test files |
+| `Cannot resolve module '../template/template.module'` | Import path not updated | Update all import paths in test files |
+| `Route '/mcapi/template' not found` | E2E test uses old endpoint | Update API endpoint paths in E2E tests |
+
+**E2E Test Configuration**:
+
+The template includes proper E2E test configuration to avoid common hanging issues:
+- Database connection checks disabled during tests (`DB_CHECK=false`)
+- MCP server disabled during tests (`MCP_ENABLED=false`)
+- Reduced log levels for cleaner test output
+- Proper test timeouts and cleanup procedures
+- Separate Jest configuration for E2E tests (`jest-e2e.config.js`)
+
+**Running Tests**:
+- Unit tests: `npm run test`
+- E2E tests: `npm run test:e2e`
+- All tests with coverage: `npm run test:cov`
 
 **If any step fails**, the bootstrap is incomplete and must be fixed before proceeding.
 
-### Step 10: Git Repository Initialization
+### Step 11: Git Repository Initialization
 
 **CRITICAL**: Initialize a new Git repository for your project:
 
@@ -455,8 +583,8 @@ Description: User management and authentication API
    git remote add origin https://github.com/your-org/your-project-name.git
    
    # Push to remote repository
-   git branch -M main
-   git push -u origin main
+   git branch -M master
+   git push -u origin master
    ```
 
 **Why Initialize New Git Repository?**
@@ -479,10 +607,32 @@ Description: User management and authentication API
 
 ### Next Steps for Developer
 
-1. **Environment Setup**: Copy `.env.example` to `.env` and configure environment variables
-2. **Database Configuration**: Update database connection settings in `.env`
+1. **Environment Configuration** (MANDATORY): 
+   ```bash
+   # Environment file should already be created during bootstrap
+   # Edit .env file with your specific configuration
+   nano .env  # or use your preferred editor
+   ```
+   
+   **Required Environment Variables to Configure**:
+   - Database connection settings (host, port, username, password, database name)
+   - API keys and external service credentials
+   - Log levels and application-specific settings
+   - Port and host configurations for development
+
+2. **Database Setup**: Ensure your database is running and accessible with the credentials in `.env`
 3. **API Customization**: Review and customize API endpoints in `src/modules/{api_name}/`
 4. **Documentation**: Update API documentation in `docs/` directory
+
+**Environment Setup Details**:
+```bash
+# Environment file created during bootstrap - now configure it
+# Update these critical settings in .env:
+# - DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD, DATABASE_NAME
+# - APP_LOG_LEVEL (debug, info, warn, error)
+# - APP_PORT (default: 3232)
+# - Any API keys for external services your API will use
+```
 
 ### Development Commands
 
@@ -494,8 +644,8 @@ Description: User management and authentication API
 
 ### API Endpoints
 
-- **API Base**: `http://localhost:3232/mcapi/{project_name}`
-- **Swagger UI**: `http://localhost:3232/mcapi/docs/swagger/ui`
+- **API Base**: `http://localhost:3232/mcapi/{scope}/{project_name}`
+- **Swagger UI**: `http://localhost:3232/mcapi/{scope}/docs/swagger/ui`
 
 ## AI Assistant Execution Guidelines
 
@@ -507,6 +657,7 @@ Description: User management and authentication API
 4. **Verify each step** - Check that files exist and contain expected content after each operation
 5. **Handle errors gracefully** - If any step fails, provide clear error messages and cleanup guidance
 6. **MANDATORY MCP INTEGRATION** - Always implement MCP tools for HTTP transport unless SSE explicitly requested
+7. **CRITICAL TEST VALIDATION** - Always verify test expectations are updated, especially integration tests
 
 ### Input Validation Patterns
 
@@ -542,6 +693,8 @@ Description: User management and authentication API
 - **E2E test failures**: Check that all API endpoint paths in tests have been updated (`'/mcapi/template'` → `'/mcapi/{api_name}'`)
 - **Mock data errors**: Ensure all mock variables have been renamed (`mockTemplate` → `mock{ApiNamePascal}`)
 - **Describe block mismatches**: Verify all `describe()` blocks use the new API name
+- **Integration test failures**: Most common - check `src/config/package.config.integration.spec.ts` description expectation
+- **Route constant errors**: Verify `ROUTES.TEMPLATE` updated to `ROUTES.{API_NAME_UPPER}` in all test files
 
 ### Success Criteria
 
@@ -563,11 +716,44 @@ The bootstrap is successful when:
 2. **Validate User Input**: Confirm project_name, api_name, and description meet requirements
 3. **Generate Variables**: Create all derived variables (pascal case, upper case, etc.)
 4. **File Operations**: Execute renaming operations in exact order specified
-5. **Content Updates**: Replace all template references with new API names
+5. **Content Updates**: Replace all template references with new API names (follow optimized order)
 6. **Configuration Updates**: Update package.json, app.module.ts, routes.config.ts
-7. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
-8. **Verification**: Run build, lint, and test commands to ensure success
-9. **Git Initialization**: Initialize new Git repository for the project
-10. **Report Results**: Provide clear success/failure status with next steps
+7. **Test File Updates**: CRITICAL - Update all test files including integration test expectations
+8. **MCP Integration**: Implement mandatory MCP tools for HTTP transport
+9. **Environment Setup**: Create .env file from .env.example template
+10. **Verification**: Run build, lint, and test commands to ensure success (use enhanced checklist)
+11. **Git Initialization**: Initialize new Git repository for the project
+12. **Report Results**: Provide clear success/failure status with next steps
 
 **CRITICAL**: Never proceed to the next step if the current step fails. Always fix issues before continuing.
+
+**ENHANCED ERROR HANDLING**: If tests fail during verification:
+1. Check the common failure patterns table above
+2. Verify all template strings have been replaced
+3. Ensure integration test expectations match new API description
+4. Validate all import paths and class references are updated
+
+## 🚀 Future Enhancement Suggestions
+
+### Automated Bootstrap Script (Future Consideration)
+
+Consider creating a bootstrap automation script that handles:
+- File renaming operations with regex patterns
+- Content replacement with validation
+- Test file updates including expectations
+- Comprehensive verification of all replacements
+- Rollback capability in case of errors
+
+This would eliminate manual errors and ensure 100% consistency across all bootstrap operations.
+
+### Performance Optimizations
+
+- **Parallel Processing**: File operations could be parallelized where safe
+- **Incremental Validation**: Validate each file group after replacement
+- **Smart Conflict Detection**: Detect potential naming conflicts before starting
+- **Template Versioning**: Support for different template versions and migration paths
+
+---
+
+**Last Updated**: Based on real-world bootstrap experience and error pattern analysis
+**Version**: Enhanced with integration test fixes and comprehensive error handling

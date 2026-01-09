@@ -1,5 +1,3 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-
 /**
  * Base interface for MCP transport implementations.
  * Defines the contract that all transport types must implement.
@@ -10,7 +8,7 @@ export interface McpTransport {
    * @param server - The MCP server instance to connect
    * @returns Promise that resolves when connection is established
    */
-  connect(server: Server): Promise<void>;
+  connect(server: unknown): Promise<void>;
 
   /**
    * Disconnect and cleanup the transport.
@@ -37,4 +35,5 @@ export interface TransportConfig {
   host?: string;
   serverName: string;
   serverVersion: string;
+  basePath?: string; // Base path for HTTP/SSE endpoints (e.g., '/mcapi/scope/mcp')
 }

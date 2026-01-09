@@ -1,6 +1,10 @@
 /**
  * Dynamic route configuration based on environment variables
  * This file provides route configuration that can be used at runtime
+ * 
+ * Route Pattern: mcapi/${scopePrefix}/health, mcapi/${scopePrefix}/docs, mcapi/${scopePrefix}/mcp
+ * - Without scope: /mcapi/health, /mcapi/docs, /mcapi/mcp
+ * - With scope: /mcapi/{scope}/health, /mcapi/{scope}/docs, /mcapi/{scope}/mcp
  */
 
 // Load environment variables from .env file
@@ -18,24 +22,29 @@ function getScopePrefix(): string {
 
 /**
  * Generate route paths based on current environment configuration
+ * Pattern: mcapi/${scopePrefix}/health, mcapi/${scopePrefix}/docs, mcapi/${scopePrefix}/mcp
  */
 function generateRoutes(): {
   readonly HEALTH: string;
   readonly TEMPLATE: string;
   readonly DOCS: string;
+  readonly MCP: string;
 } {
   const scopePrefix = getScopePrefix();
 
   return {
-    // Health controller: /mcapi/health/{scope}/ping
-    HEALTH: scopePrefix ? `health/${scopePrefix}` : 'health',
+    // Health controller: /mcapi/{scope}/health/ping
+    HEALTH: scopePrefix ? `${scopePrefix}/health` : 'health',
 
-    // Template API controller: /mcapi/{scope}/hello
+    // Template API controller: /mcapi/{scope}/template
     TEMPLATE: scopePrefix ? `${scopePrefix}/template` : 'template',
 
-    // Swagger docs path: /mcapi/docs/{scope}/swagger/ui
-    // Swagger specs path: /mcapi/docs/{scope}/swagger/specs (configured in main.ts)
-    DOCS: scopePrefix ? `docs/${scopePrefix}/swagger/ui` : 'docs/swagger/ui',
+    // Swagger docs path: /mcapi/{scope}/docs/swagger/ui
+    // Swagger specs path: /mcapi/{scope}/docs/swagger/specs (configured in main.ts)
+    DOCS: scopePrefix ? `${scopePrefix}/docs/swagger/ui` : 'docs/swagger/ui',
+
+    // MCP server path: /mcapi/{scope}/mcp
+    MCP: scopePrefix ? `${scopePrefix}/mcp` : 'mcp',
   } as const;
 }
 

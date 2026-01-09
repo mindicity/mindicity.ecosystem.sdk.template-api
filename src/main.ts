@@ -1,18 +1,18 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { IncomingMessage } from 'http';
 
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+
+import { ZodValidationPipe } from 'nestjs-zod';
 
 import fastifyCompress from '@fastify/compress';
 import helmet from '@fastify/helmet';
 import { config } from 'dotenv';
 import { Logger } from 'nestjs-pino';
 import { v4 as uuidv4 } from 'uuid';
-// import { patchNestJsSwagger } from 'nestjs-zod';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -93,7 +93,7 @@ export async function bootstrap(): Promise<void> {
     app.enableCors({
       origin: true,
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
       allowedHeaders: [
         'Content-Type',
         'Authorization',
@@ -117,18 +117,8 @@ export async function bootstrap(): Promise<void> {
       done();
     });
 
-  // Global validation pipe
-  // patchNestJsSwagger();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  // Global validation pipe - use ZodValidationPipe for nestjs-zod compatibility
+  app.useGlobalPipes(new ZodValidationPipe());
 
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter(app.get(Logger), configService));
@@ -195,17 +185,20 @@ export async function bootstrap(): Promise<void> {
   if (mcpConfig?.enabled) {
     let transportInfo: string;
     const mcpUrls: string[] = [];
+    
+    // Get MCP base path from routes configuration
+    const mcpBasePath = `${apiPrefix}/${ROUTES.MCP}`;
 
     switch (mcpConfig.transport) {
       case 'http':
         transportInfo = `http transport (${mcpConfig.host}:${mcpConfig.port})`;
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}`);
         break;
       case 'sse':
         transportInfo = `sse transport (${mcpConfig.host}:${mcpConfig.port})`;
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp/events`);
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp`);
-        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}/mcp/info`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}/events`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}`);
+        mcpUrls.push(`http://${mcpConfig.host}:${mcpConfig.port}${mcpBasePath}/info`);
         break;
       default:
         // This should never happen due to Zod validation, but TypeScript requires it

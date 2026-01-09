@@ -1,52 +1,67 @@
+# ----------------------------
+# Build stage
+# ----------------------------
+# Use a slim Node.js image as the builder
 FROM node:24-bookworm-slim AS builder
 
-ENV TZ="UTC"
+# Set environment variables for build
+ENV NODE_ENV=development \
+    TZ=UTC \
+    NPM_CONFIG_IGNORE_SCRIPTS=true 
 
+# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy only package files first to leverage Docker cache
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Install dependencies including devDependencies (needed for Nest CLI)
 RUN npm ci
 
-# Copy source code and config files
+# Copy TypeScript config and source code
 COPY tsconfig.json nest-cli.json ./
 COPY src ./src
 
 # Build the application
 RUN npm run build
 
-# Production stage
-FROM node:24-bookworm-slim AS production
+# ----------------------------
+# Runtime stage
+# ----------------------------
+# Use a clean slim Node.js image for production runtime
+FROM node:24-bookworm-slim AS runtime
 
-ENV TZ="UTC"
+# Set environment variables
+ENV NODE_ENV=production \
+    TZ=UTC
 
+# Set working directory
 WORKDIR /app
 
-# Copy built files and dependencies from builder
+# Copy built files and production dependencies from builder
+COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy environment file
-COPY .env ./
-
-# Install useful debugging tools
-RUN apt-get update -y && apt-get install -y \
-    tcpdump \
-    iputils-ping \
-    telnet \
+# Optional: install debugging/network tools
+# Using --no-install-recommends reduces image size
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    iputils-ping \
+    tcpdump \
+    telnet \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Set ownership and switch to non-root user
+# Set ownership of app folder and switch to non-root user
 RUN chown -R 1000:1000 /app
 
+# Switch to non-root user 
 USER 1000
 
+# Expose application ports
 EXPOSE 3232 3235
 
+# Start the application
 CMD ["node", "dist/main.js"]

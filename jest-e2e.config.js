@@ -1,20 +1,13 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
-  testRegex: '.*\\.spec\\.ts$',
+  testRegex: '.*\\.e2e-spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
   transformIgnorePatterns: [
     'node_modules/(?!(uuid)/)',
   ],
-  collectCoverageFrom: [
-    'src/**/*.(t|j)s',
-    '!src/**/*.spec.ts',
-    '!src/**/*.interface.ts',
-    '!src/main.ts',
-  ],
-  coverageDirectory: './test/coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
     '^src/(.*)$': '<rootDir>/src/$1',
@@ -26,16 +19,12 @@ module.exports = {
   maxWorkers: 1,
   forceExit: true,
   detectOpenHandles: true,
-  verbose: false,
+  verbose: true,
   testTimeout: 30000,
-  coverageThreshold: {
-    global: {
-      statements: 80,
-      branches: 80,
-      functions: 80,
-      lines: 80,
-    },
-  },
-  coverageReporters: ['html', 'text', 'lcov', 'json-summary', 'cobertura'],
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  // E2E specific settings
+  globalSetup: undefined,
+  globalTeardown: undefined,
+  // Disable coverage for E2E tests
+  collectCoverage: false,
 };

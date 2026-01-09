@@ -1,3 +1,4 @@
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 import { HealthService } from '../../../modules/health/health.service';
 
 import { HttpTransport } from './http-transport';
@@ -7,6 +8,7 @@ import { TransportFactory } from './transport-factory';
 
 describe('TransportFactory', () => {
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockLoggerService: jest.Mocked<ContextLoggerService>;
   let dependencies: OptionalTransportDependencies;
 
   beforeEach(() => {
@@ -32,9 +34,21 @@ describe('TransportFactory', () => {
       }),
     } as any;
 
+    mockLoggerService = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      setContext: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    } as any;
+
     // Use the helper function to create dependencies
     dependencies = createTransportDependencies({
       healthService: mockHealthService,
+      loggerService: mockLoggerService,
     });
   });
 
@@ -136,6 +150,7 @@ describe('TransportFactory', () => {
       // This test shows how the pattern scales without changing the factory signature
       const scalableDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
         // In the future, additional services would be added here:
         // userService: mockUserService,
         // notificationService: mockNotificationService,
@@ -158,9 +173,11 @@ describe('TransportFactory', () => {
     it('should create dependencies with validation', () => {
       const deps = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
       });
 
       expect(deps.healthService).toBe(mockHealthService);
+      expect(deps.loggerService).toBe(mockLoggerService);
     });
 
     it('should throw error when HealthService is missing', () => {

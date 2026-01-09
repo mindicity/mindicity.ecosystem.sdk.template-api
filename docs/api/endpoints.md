@@ -65,6 +65,7 @@ curl -X GET http://localhost:3232/mcapi/health/ping
 - This endpoint is excluded from standard request logging to reduce noise
 - Response time should be under 100ms
 - Used by monitoring systems and load balancers
+- Includes comprehensive health monitoring with memory usage and uptime information
 
 ## Template Module
 
@@ -84,6 +85,109 @@ When using this template to create a new API:
 2. Placeholder endpoints will be replaced with your business logic
 3. DTOs and interfaces will be customized for your data models
 4. Database queries will be implemented for your specific use cases
+
+## MCP Server Endpoints
+
+The API includes a built-in Model Context Protocol (MCP) server for AI agent connectivity.
+
+### POST /mcapi/{scope}/mcp (HTTP Transport)
+
+MCP request endpoint for AI agents using HTTP transport.
+
+**Request:**
+```http
+POST http://localhost:3235/mcapi/{scope}/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "get_api_info",
+    "arguments": {}
+  },
+  "id": 1
+}
+```
+
+**Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"name\":\"nestjs-template-api\",\"version\":\"1.0.0\",\"port\":3232}"
+      }
+    ]
+  },
+  "id": 1
+}
+```
+
+### GET /mcapi/{scope}/mcp/events (SSE Transport)
+
+Server-Sent Events endpoint for real-time MCP communication.
+
+**Request:**
+```http
+GET http://localhost:3235/mcapi/{scope}/mcp/events
+Accept: text/event-stream
+```
+
+**Response:**
+```
+data: {"type":"connected","serverName":"nestjs-template-api","version":"1.0.0"}
+
+data: {"type":"initialized","capabilities":["tools","resources"]}
+```
+
+### GET /mcapi/{scope}/mcp/info (SSE Transport)
+
+Information endpoint for SSE transport configuration.
+
+**Request:**
+```http
+GET http://localhost:3235/mcapi/{scope}/mcp/info
+```
+
+**Response:**
+```json
+{
+  "serverName": "nestjs-template-api",
+  "version": "1.0.0",
+  "transport": "sse",
+  "endpoints": {
+    "events": "http://localhost:3235/mcapi/{scope}/mcp/events",
+    "requests": "http://localhost:3235/mcapi/{scope}/mcp"
+  }
+}
+```
+
+**Configuration:**
+
+MCP server configuration is controlled via environment variables:
+
+```bash
+MCP_ENABLED=true          # Enable/disable MCP server
+MCP_TRANSPORT=http        # Transport: stdio, http, sse
+MCP_PORT=3235            # Port for HTTP/SSE transports
+MCP_HOST=localhost       # Host for HTTP/SSE transports
+```
+
+**Built-in Tools:**
+
+- `get_api_info` - Returns API configuration and endpoints
+- `get_api_health` - Provides health status and system metrics
+- `list_api_endpoints` - Lists all available API endpoints
+
+**Built-in Resources:**
+
+- `doc://openapi` - Complete OpenAPI specification
+- `doc://readme` - API documentation
+- `schema://health` - Health check schemas
+- `examples://health` - Health endpoint examples
 
 ## Documentation Endpoints
 

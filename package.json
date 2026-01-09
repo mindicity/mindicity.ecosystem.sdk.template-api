@@ -18,9 +18,11 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "npm run test:cov",
-    "test:cov": "jest --coverage",
+    "test:cov": "jest --coverage --silent",
+    "test:quiet": "jest --silent",
+    "test:summary": "jest --verbose=false --passWithNoTests",
     "test:watch": "jest --watch",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "jest --config jest-e2e.config.js",
     "test:mcp": "node scripts/test-mcp.js",
     "prepare": "husky"
   },

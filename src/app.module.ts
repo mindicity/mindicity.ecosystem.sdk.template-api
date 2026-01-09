@@ -12,6 +12,7 @@ import { createPinoTransportsWithRotation } from './common/utils/pino-roll-trans
 import appConfig from './config/app.config';
 import logConfig from './config/log.config';
 import mcpConfig from './config/mcp.config';
+import packageConfig from './config/package.config';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { McpModule } from './infrastructure/mcp/mcp.module';
 import { HealthModule } from './modules/health/health.module';
@@ -25,7 +26,7 @@ import { TemplateModule } from './modules/template/template.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, logConfig, mcpConfig],
+      load: [appConfig, logConfig, mcpConfig, packageConfig],
       envFilePath: '.env',
       validate: (config: Record<string, unknown>) => {
         // Validate environment variables using our Zod schemas
@@ -33,6 +34,7 @@ import { TemplateModule } from './modules/template/template.module';
           appConfig();
           logConfig();
           mcpConfig();
+          packageConfig();
           // Database config will be validated when the module is loaded
           return config;
         } catch (error) {

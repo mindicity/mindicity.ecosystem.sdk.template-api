@@ -39,19 +39,12 @@ export class HealthService {
     const healthData: HealthResponseDto = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      server: packageInfo?.name ?? 'nestjs-template-api',
-      version: packageInfo?.version ?? '1.0.0',
+      server: packageInfo?.name ?? 'template-api',
+      version: packageInfo?.version ?? '0.0.1',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       environment: process.env.NODE_ENV ?? 'development',
     };
-
-    this.logger.debug('health status generated', {
-      status: healthData.status,
-      server: healthData.server,
-      version: healthData.version,
-      uptime: healthData.uptime,
-    });
 
     return healthData;
   }

@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  app:
+    # Build from your custom Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile.standalone
+    # Alternatively, if you already built an image:
+    # image: my-nest-app:latest
+
+    # Pass .env file as environment variables
+    env_file:
+      - .env
+
+    # Expose ports to host
+    ports:
+      - "3232:3232"
+      - "3235:3235"
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Optional: set container name
+    container_name: nestjs-template-api
+
+    # Optional: volumes (if you want live reload, logs, etc.)
+    # volumes:
+    #   - ./src:/app/src
+    #   - ./logs:/app/logs
+
+    # Optional: depends_on if you have other services
+    # depends_on:
+    #   - db

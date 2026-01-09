@@ -1,3 +1,6 @@
+import { ConfigService } from '@nestjs/config';
+
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 import { HealthService } from '../../../modules/health/health.service';
 
 /**
@@ -51,10 +54,22 @@ export interface TransportDependencies {
   healthService: HealthService;
 
   /**
+   * Context logger service for structured logging with correlation IDs.
+   * Required by all transports for proper log formatting.
+   */
+  loggerService: ContextLoggerService;
+
+  /**
    * App configuration for API endpoints and Swagger URLs.
    * Required by HTTP and SSE transports for resource URIs.
    */
   appConfig?: AppConfig;
+
+  /**
+   * Configuration service for accessing environment variables and settings.
+   * Required by transports that need to create logger services.
+   */
+  configService?: ConfigService;
 
   // Future services can be added here as needed:
   // The factory signature never changes - just extend this interface!
@@ -119,6 +134,7 @@ export type OptionalTransportDependencies = Partial<TransportDependencies>;
  * // Create dependencies with validation
  * const dependencies = createTransportDependencies({
  *   healthService: this.healthService,
+ *   loggerService: this.loggerService,
  *   userService: this.userService,
  * });
  * 
@@ -132,6 +148,10 @@ export function createTransportDependencies(
   // Validate that required services are present
   if (!services.healthService) {
     throw new Error('HealthService is required for MCP transports');
+  }
+
+  if (!services.loggerService) {
+    throw new Error('ContextLoggerService is required for MCP transports');
   }
 
   // Future validation logic can be added here
@@ -160,6 +180,9 @@ export function validateTransportDependencies(
   if (transportType === 'http') {
     if (!dependencies?.healthService) {
       throw new Error(`${transportType.toUpperCase()} transport requires HealthService in dependencies`);
+    }
+    if (!dependencies?.loggerService) {
+      throw new Error(`${transportType.toUpperCase()} transport requires ContextLoggerService in dependencies`);
     }
   }
 

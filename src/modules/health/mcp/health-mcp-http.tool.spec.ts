@@ -52,7 +52,8 @@ describe('HealthMcpHttpTool', () => {
     }).compile();
 
     healthService = module.get<HealthService>(HealthService);
-    healthMcpHttpTool = new HealthMcpHttpTool(healthService);
+    const loggerService = module.get<ContextLoggerService>(ContextLoggerService);
+    healthMcpHttpTool = new HealthMcpHttpTool(healthService, loggerService);
   });
 
   describe('getApiHealth', () => {

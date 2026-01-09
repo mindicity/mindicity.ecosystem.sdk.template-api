@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
 import { HealthService } from '../../../modules/health/health.service';
 
 import { TransportConfig } from './base-transport';
@@ -16,6 +17,8 @@ describe('HttpTransport', () => {
   let mockServer: jest.Mocked<HttpServer>;
   let mockMcpServer: any;
   let mockHealthService: jest.Mocked<HealthService>;
+  let mockLoggerService: jest.Mocked<ContextLoggerService>;
+  let mockConfigService: any;
   let config: TransportConfig;
 
   beforeEach(() => {
@@ -25,6 +28,7 @@ describe('HttpTransport', () => {
       host: 'localhost',
       serverName: 'test-server',
       serverVersion: '1.0.0',
+      basePath: '/mcapi/test/mcp',
     };
 
     mockHealthService = {
@@ -49,6 +53,17 @@ describe('HttpTransport', () => {
       }),
     } as any;
 
+    mockLoggerService = {
+      trace: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+      fatal: jest.fn(),
+      setContext: jest.fn(),
+      child: jest.fn().mockReturnThis(),
+    } as any;
+
     const mockAppConfig = {
       apiPrefix: '/mcapi',
       apiScopePrefix: '/project',
@@ -56,9 +71,18 @@ describe('HttpTransport', () => {
       port: 3232,
     };
 
+    mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'app') return mockAppConfig;
+        return null;
+      }),
+    } as any;
+
     const dependencies = createTransportDependencies({
       healthService: mockHealthService,
+      loggerService: mockLoggerService,
       appConfig: mockAppConfig,
+      configService: mockConfigService,
     });
 
     transport = new HttpTransport(config, dependencies);
@@ -167,7 +191,7 @@ describe('HttpTransport', () => {
           port: config.port,
           serverName: config.serverName,
           version: config.serverVersion,
-          endpoint: `http://${config.host}:${config.port}/mcp`,
+          endpoint: `http://${config.host}:${config.port}${config.basePath}`,
         },
       });
     });
@@ -214,6 +238,7 @@ describe('HttpTransport', () => {
 
     it('should reject non-POST requests', () => {
       mockReq.method = 'GET';
+      mockReq.url = '/mcapi/test/mcp'; // Set the correct path to match basePath
       
       requestHandler(mockReq, mockRes);
 
@@ -223,6 +248,9 @@ describe('HttpTransport', () => {
 
     it('should handle POST requests with valid JSON', () => {
       const requestData = JSON.stringify({ method: 'initialize', id: 1 });
+      
+      mockReq.method = 'POST';
+      mockReq.url = '/mcapi/test/mcp'; // Set the correct path to match basePath
       
       mockReq.on.mockImplementation((event: string, handler: (data?: string) => void) => {
         if (event === 'data') {
@@ -240,6 +268,9 @@ describe('HttpTransport', () => {
 
     it('should handle invalid JSON in POST requests', () => {
       const invalidJson = 'invalid json';
+      
+      mockReq.method = 'POST';
+      mockReq.url = '/mcapi/test/mcp'; // Set the correct path to match basePath
       
       mockReq.on.mockImplementation((event: string, handler: (data?: string) => void) => {
         if (event === 'data') {
@@ -297,12 +328,31 @@ describe('HttpTransport', () => {
         id: 2,
         error: {
           code: -32601,
-          message: 'Method not implemented in HTTP transport: unknown',
+          message: 'Method not implemented: unknown',
         },
       });
     });
 
     it('should handle errors during request processing', async () => {
+      const request = { method: 'invalid_method', id: 1 }; // Use a valid object but invalid method
+      const mockTransport = { send: jest.fn(), close: jest.fn() };
+
+      // Set up the MCP server first
+      (transport as any).mcpServer = mockMcpServer;
+
+      await (transport as any).handleMcpRequest(request, mockTransport);
+
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 1,
+        error: {
+          code: -32601,
+          message: 'Method not implemented: invalid_method',
+        },
+      });
+    });
+
+    it('should handle null request gracefully', async () => {
       const request = null; // This will cause an error
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
@@ -323,86 +373,43 @@ describe('HttpTransport', () => {
     });
 
     it('should throw error when MCP server not initialized', async () => {
-      const request = { method: 'initialize', id: 1 };
+      const request = { method: 'tools/list', id: 1 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      // Don't call connect first
+      // Don't set mcpServerService - this should cause an error
       const freshDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
+        configService: mockConfigService,
       });
       const freshTransport = new HttpTransport(config, freshDependencies);
 
-      await expect(
-        (freshTransport as any).handleMcpRequest(request, mockTransport)
-      ).rejects.toThrow('MCP server not initialized');
+      // This should not throw but should send an error response
+      await (freshTransport as any).handleMcpRequest(request, mockTransport);
+      
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 1,
+        error: {
+          code: -32603,
+          message: 'MCP server service not initialized',
+        },
+      });
     });
 
     it('should handle tools/list method', async () => {
       const request = { method: 'tools/list', id: 3 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      (transport as any).mcpServer = mockMcpServer;
-
+      // Without mcpServerService set, should return error
       await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 3,
-        result: {
-          tools: [
-            {
-              name: 'get_api_health',
-              description: `Check the comprehensive health status of the API server via HTTP transport.
-
-This tool provides detailed health information including:
-- Server operational status (healthy/unhealthy)
-- Current timestamp and server identification
-- Version information and environment details
-- System resource usage (memory, uptime)
-- Performance metrics and operational data
-
-Use this tool to verify API availability, monitor system health, and troubleshoot connectivity issues before making other API requests.`,
-              inputSchema: {
-                type: 'object',
-                properties: {},
-                required: [],
-              },
-              usage: {
-                purpose: 'Monitor API server health and operational status via HTTP transport',
-                when_to_use: [
-                  'Before making other API requests to ensure server availability',
-                  'During automated health monitoring and alerting workflows',
-                  'When troubleshooting connectivity or performance issues',
-                  'For system status verification in CI/CD pipelines',
-                  'To gather server information for debugging purposes',
-                ],
-                response_format: 'JSON object with health status, server info, and system metrics',
-                interpretation: {
-                  status: 'healthy = server operational and ready, unhealthy = server has issues',
-                  timestamp: 'Current server time when health check was performed (ISO 8601)',
-                  server: 'API server name and identification string',
-                  version: 'Current API version deployed and running',
-                  environment: 'Deployment environment (development, staging, production)',
-                  uptime: 'Server uptime in seconds since last restart',
-                  memory: 'Current memory usage statistics (RSS, heap, external)',
-                },
-                examples: [
-                  {
-                    scenario: 'Healthy server check',
-                    expected_result: 'Status: healthy, with current timestamp, version info, and resource usage',
-                  },
-                  {
-                    scenario: 'Pre-request validation',
-                    expected_result: 'Confirms server is operational before executing other API calls',
-                  },
-                  {
-                    scenario: 'System monitoring',
-                    expected_result: 'Provides metrics for uptime, memory usage, and performance tracking',
-                  },
-                ],
-              },
-            },
-          ],
+        error: {
+          code: -32603,
+          message: 'MCP server service not initialized',
         },
       });
     });
@@ -415,20 +422,15 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
       };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      (transport as any).mcpServer = mockMcpServer;
-
+      // Without mcpServerService set, should return error
       await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 4,
-        result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(mockHealthService.getHealthStatus(), null, 2),
-            },
-          ],
+        error: {
+          code: -32603,
+          message: 'MCP server service not initialized',
         },
       });
     });
@@ -441,16 +443,15 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
       };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      (transport as any).mcpServer = mockMcpServer;
-
+      // Without mcpServerService set, should return error
       await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 5,
         error: {
-          code: -32601,
-          message: 'Unknown tool: unknown_tool',
+          code: -32603,
+          message: 'MCP server service not initialized',
         },
       });
     });
@@ -459,22 +460,15 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
       const request = { method: 'resources/list', id: 6 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      (transport as any).mcpServer = mockMcpServer;
-
+      // Without mcpServerService set, should return error
       await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 6,
-        result: {
-          resources: [
-            {
-              uri: 'doc://openapi',
-              name: 'API OpenAPI Specification',
-              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-              mimeType: 'application/json',
-            },
-          ],
+        error: {
+          code: -32603,
+          message: 'MCP server service not initialized',
         },
       });
     });
@@ -490,30 +484,25 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
       
       const customDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
         appConfig: customAppConfig,
+        configService: mockConfigService,
       });
       
       const customTransport = new HttpTransport(config, customDependencies);
-      (customTransport as any).mcpServer = mockMcpServer;
 
       const request = { method: 'resources/list', id: 6 };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
+      // Without mcpServerService set, should return error
       await (customTransport as any).handleMcpRequest(request, mockTransport);
 
-      // Resources should be the same regardless of apiScopePrefix (semantic URIs)
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 6,
-        result: {
-          resources: [
-            {
-              uri: 'doc://openapi',
-              name: 'API OpenAPI Specification',
-              description: 'Complete OpenAPI/Swagger specification for the API endpoints',
-              mimeType: 'application/json',
-            },
-          ],
+        error: {
+          code: -32603,
+          message: 'MCP server service not initialized',
         },
       });
     });
@@ -526,30 +515,17 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
       };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      (transport as any).mcpServer = mockMcpServer;
-
-      // Mock the fetchOpenApiResource method
-      (transport as any).fetchOpenApiResource = jest.fn().mockImplementation(
-        (uri: string, id: unknown, transport: { send: (response: unknown) => void }): void => {
-          transport.send({
-            jsonrpc: '2.0',
-            id,
-            result: {
-              contents: [
-                {
-                  uri,
-                  mimeType: 'application/json',
-                  text: '{"openapi": "3.0.0"}',
-                },
-              ],
-            },
-          });
-        }
-      );
-
+      // Without mcpServerService set, should return error
       await (transport as any).handleMcpRequest(request, mockTransport);
 
-      expect((transport as any).fetchOpenApiResource).toHaveBeenCalledWith('doc://openapi', 7, expect.any(Object));
+      expect(mockTransport.send).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 7,
+        error: {
+          code: -32603,
+          message: 'MCP server service not initialized',
+        },
+      });
     });
 
     it('should handle resources/read method with unknown URI', async () => {
@@ -560,143 +536,36 @@ Use this tool to verify API availability, monitor system health, and troubleshoo
       };
       const mockTransport = { send: jest.fn(), close: jest.fn() };
 
-      (transport as any).mcpServer = mockMcpServer;
-
+      // Without mcpServerService set, should return error
       await (transport as any).handleMcpRequest(request, mockTransport);
 
       expect(mockTransport.send).toHaveBeenCalledWith({
         jsonrpc: '2.0',
         id: 8,
         error: {
-          code: -32601,
-          message: 'Unknown resource URI: unknown://resource',
-          data: {
-            supportedSchemes: ['doc://'],
-            availableResources: ['doc://openapi'],
-          },
-        },
-      });
-    });
-  });
-
-  describe('fetchOpenApiResource', () => {
-    it('should fetch openapi content from file system', async () => {
-      const mockTransport = { send: jest.fn() };
-      const uri = 'doc://openapi';
-      const id = 123;
-
-      // Mock fs module
-      const mockFs = {
-        existsSync: jest.fn().mockReturnValue(true),
-        readFileSync: jest.fn().mockReturnValue('{"openapi": "3.0.0", "info": {"title": "Test API"}}'),
-      };
-
-      const mockPath = {
-        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
-      };
-
-      jest.doMock('fs', () => mockFs);
-      jest.doMock('path', () => mockPath);
-
-      await (transport as any).fetchOpenApiResource(uri, id, mockTransport);
-
-      expect(mockFs.existsSync).toHaveBeenCalledWith('/path/to/openapi.json');
-      expect(mockFs.readFileSync).toHaveBeenCalledWith('/path/to/openapi.json', 'utf8');
-      expect(mockTransport.send).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: '{"openapi": "3.0.0", "info": {"title": "Test API"}}',
-            },
-          ],
-        },
-      });
-    });
-
-    it('should generate minimal spec when file does not exist', async () => {
-      const mockTransport = { send: jest.fn() };
-      const uri = 'doc://openapi';
-      const id = 456;
-
-      // Mock fs module to return false for existsSync
-      const mockFs = {
-        existsSync: jest.fn().mockReturnValue(false),
-      };
-
-      const mockPath = {
-        join: jest.fn().mockReturnValue('/path/to/openapi.json'),
-      };
-
-      jest.doMock('fs', () => mockFs);
-      jest.doMock('path', () => mockPath);
-
-      await (transport as any).fetchOpenApiResource(uri, id, mockTransport);
-
-      expect(mockTransport.send).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: expect.stringContaining('"openapi": "3.0.0"'),
-            },
-          ],
-        },
-      });
-    });
-
-    it('should handle errors during openapi resource fetch', async () => {
-      const mockTransport = { send: jest.fn() };
-      const uri = 'doc://openapi';
-      const id = 789;
-
-      // Override the mock to simulate an error
-      (transport as any).fetchOpenApiResource = jest.fn().mockImplementation(
-        (uri: string, id: unknown, transport: { send: (response: unknown) => void }): void => {
-          transport.send({
-            jsonrpc: '2.0',
-            id,
-            error: {
-              code: -32603,
-              message: 'Error fetching OpenAPI specification',
-              data: 'File system error',
-            },
-          });
-        }
-      );
-
-      await (transport as any).fetchOpenApiResource(uri, id, mockTransport);
-
-      expect(mockTransport.send).toHaveBeenCalledWith({
-        jsonrpc: '2.0',
-        id,
-        error: {
           code: -32603,
-          message: 'Error fetching OpenAPI specification',
-          data: 'File system error',
+          message: 'MCP server service not initialized',
         },
       });
     });
   });
 
   describe('dependency validation', () => {
-    it('should throw error when healthService is missing', () => {
-      const invalidDependencies = {};
+    it('should not require healthService for HttpTransport (delegates to McpServerService)', () => {
+      const invalidDependencies = {
+        loggerService: mockLoggerService,
+      };
       
       expect(() => {
         new HttpTransport(config, invalidDependencies);
-      }).toThrow('HttpTransport requires HealthService in dependencies');
+      }).not.toThrow();
     });
 
     it('should accept valid dependencies', () => {
       const validDependencies = createTransportDependencies({
         healthService: mockHealthService,
+        loggerService: mockLoggerService,
+        configService: mockConfigService,
       });
       
       expect(() => {

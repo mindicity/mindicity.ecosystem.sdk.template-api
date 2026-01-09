@@ -1,10 +1,13 @@
 import { ConfigService } from '@nestjs/config';
 
+import { ContextLoggerService } from '../../../common/services/context-logger.service';
+
 import { HealthMcpResources } from './health-mcp-resources';
 
 describe('HealthMcpResources', () => {
   let healthMcpResources: HealthMcpResources;
   let mockConfigService: jest.Mocked<ConfigService>;
+  let mockLoggerService: jest.Mocked<ContextLoggerService>;
 
   const mockAppConfig = {
     port: 3232,
@@ -21,7 +24,14 @@ describe('HealthMcpResources', () => {
       }),
     } as any;
 
-    healthMcpResources = new HealthMcpResources(mockConfigService);
+    mockLoggerService = {
+      child: jest.fn().mockReturnThis(),
+      setContext: jest.fn(),
+      trace: jest.fn(),
+      debug: jest.fn(),
+    } as any;
+
+    healthMcpResources = new HealthMcpResources(mockConfigService, mockLoggerService);
   });
 
   afterEach(() => {
@@ -43,8 +53,8 @@ describe('HealthMcpResources', () => {
       expect(swaggerResource.description).toContain('Complete OpenAPI 3.0 specification for NestJS API');
       expect(swaggerResource.description).toContain('Production-ready NestJS API with Fastify and Pino');
       expect(swaggerResource.description).toContain('2 available API endpoints'); // health endpoints
-      expect(swaggerResource.description).toContain('/mcapi/health/project/ping');
-      expect(swaggerResource.description).toContain('/mcapi/health/project/status');
+      expect(swaggerResource.description).toContain('/mcapi/project/health/ping');
+      expect(swaggerResource.description).toContain('/mcapi/project/health/status');
       expect(swaggerResource.mimeType).toBe('application/json');
     });
 
@@ -133,7 +143,7 @@ describe('HealthMcpResources', () => {
         get: jest.fn(() => null),
       } as any;
 
-      const healthResourcesWithoutConfig = new HealthMcpResources(configWithoutApp);
+      const healthResourcesWithoutConfig = new HealthMcpResources(configWithoutApp, mockLoggerService);
       const uri = 'doc://openapi/specs';
       const result = healthResourcesWithoutConfig.handleResourceRead(uri);
 
