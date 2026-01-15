@@ -404,7 +404,65 @@ const pageSize = query.limit || 10;  // Fails for 0, "", false
 console.log('Debug');                // Use logger
 ```
 
-### Documentation
+### Code Comments
+
+**REQUIRED:** Add inline comments to explain business logic, complex operations, and non-obvious code:
+
+```typescript
+// ✅ CORRECT: Comments explain WHY and WHAT
+async processOrder(orderId: string): Promise<OrderResult> {
+  this.logger.trace('processOrder()', { orderId });
+
+  // Retrieve order with related items and customer data
+  const order = await this.getOrderWithDetails(orderId);
+
+  // Apply discount only for premium customers with orders > $100
+  if (order.customer.isPremium && order.total > 100) {
+    order.total = this.applyDiscount(order.total, 0.1);
+  }
+
+  // Lock inventory before payment to prevent overselling
+  await this.inventoryService.reserveItems(order.items);
+
+  try {
+    // Process payment through external gateway
+    const payment = await this.paymentService.charge(order.total);
+    
+    // Update order status and release inventory lock
+    return await this.finalizeOrder(order, payment);
+  } catch (error) {
+    // Rollback inventory reservation on payment failure
+    await this.inventoryService.releaseItems(order.items);
+    throw error;
+  }
+}
+
+// ❌ WRONG: No comments or obvious comments
+async processOrder(orderId: string): Promise<OrderResult> {
+  this.logger.trace('processOrder()', { orderId });
+  const order = await this.getOrderWithDetails(orderId);
+  // Get order  ← Useless comment
+  if (order.customer.isPremium && order.total > 100) {
+    order.total = this.applyDiscount(order.total, 0.1);
+  }
+  await this.inventoryService.reserveItems(order.items);
+  const payment = await this.paymentService.charge(order.total);
+  return await this.finalizeOrder(order, payment);
+}
+```
+
+**Comment Guidelines:**
+- Explain business rules and domain logic
+- Document complex algorithms or calculations
+- Clarify non-obvious type conversions or data transformations
+- Note important side effects or state changes
+- Explain error handling strategies
+- Don't comment obvious code (`// Set variable to 5`)
+- Don't duplicate what the code already says clearly
+
+### JSDoc Documentation
+
+**REQUIRED:** Public methods and complex functions need JSDoc:
 
 ```typescript
 /**
