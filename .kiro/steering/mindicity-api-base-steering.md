@@ -90,7 +90,7 @@ src/modules/{your-api}/
 5. **ALWAYS** add TRACE logging at the start of every method with method name and parameters
 6. **ALWAYS** use `SqlQueryBuilder` for simple queries
 7. **NEVER** add authentication guards (gateway handles auth)
-8. **ALWAYS** add `@ApiResponse` decorations to all controller endpoints
+8. **ALWAYS** add complete Swagger documentation (`@ApiOperation`, `@ApiResponse`, `@ApiBody` when needed) to all controller endpoints
 
 ### CRITICAL: Swagger Documentation Requirements (AI Assistant Must Enforce)
 
@@ -109,33 +109,94 @@ async methodName(@Query() query: QueryDto): Promise<ResponseDto[]> {
   // Implementation...
 }
 
+// ✅ CORRECT: POST/PUT/PATCH endpoints with request body
+@Post()
+@ApiOperation({ summary: 'Create a new entity' })
+@ApiBody({ type: CreateEntityDto })
+@ApiResponse({
+  status: 201,
+  description: 'Entity successfully created',
+  type: EntityResponseDto,
+})
+async create(@Body() createDto: CreateEntityDto): Promise<EntityResponseDto> {
+  // Implementation...
+}
+
+// ✅ CORRECT: PUT endpoint with request body
+@Put(':id')
+@ApiOperation({ summary: 'Update an existing entity' })
+@ApiBody({ type: UpdateEntityDto })
+@ApiResponse({
+  status: 200,
+  description: 'Entity successfully updated',
+  type: EntityResponseDto,
+})
+async update(
+  @Param('id') id: string,
+  @Body() updateDto: UpdateEntityDto,
+): Promise<EntityResponseDto> {
+  // Implementation...
+}
+
 // ✅ CORRECT: For array responses
+@Get()
+@ApiOperation({ summary: 'Get all entities' })
 @ApiResponse({
   status: 200,
   description: 'List of entities',
   type: [EntityResponseDto],
 })
+async findAll(@Query() query: QueryDto): Promise<EntityResponseDto[]> {
+  // Implementation...
+}
 
 // ✅ CORRECT: For single object responses
+@Get(':id')
+@ApiOperation({ summary: 'Get entity by ID' })
 @ApiResponse({
   status: 200,
   description: 'Entity details',
   type: EntityResponseDto,
 })
+async findOne(@Param('id') id: string): Promise<EntityResponseDto> {
+  // Implementation...
+}
 
 // ✅ CORRECT: For paginated responses
+@Get('paginated')
+@ApiOperation({ summary: 'Get paginated list of entities' })
 @ApiResponse({
   status: 200,
   description: 'Paginated list of entities',
   type: EntityPaginatedResponseDto,
 })
+async findAllPaginated(@Query() query: QueryPaginatedDto): Promise<EntityPaginatedResponseDto> {
+  // Implementation...
+}
+
+// ✅ CORRECT: DELETE endpoint
+@Delete(':id')
+@ApiOperation({ summary: 'Delete an entity' })
+@ApiResponse({
+  status: 200,
+  description: 'Entity successfully deleted',
+})
+async remove(@Param('id') id: string): Promise<void> {
+  // Implementation...
+}
 ```
 
 **AI Assistant Rules**:
-- **NEVER generate controller methods** without `@ApiResponse` decoration
+- **NEVER generate controller methods** without `@ApiOperation` and `@ApiResponse` decorations
+- **ALWAYS add `@ApiBody`** for POST, PUT, PATCH endpoints that accept request body
 - **ALWAYS include proper response type** (single object, array, or paginated)
-- **ALWAYS import `ApiResponse`** from `@nestjs/swagger`
+- **ALWAYS import required decorators** from `@nestjs/swagger`: `ApiOperation`, `ApiResponse`, `ApiBody`
 - **VERIFY every endpoint** has complete Swagger documentation before completing tasks
+
+**Required Imports**:
+```typescript
+import { ApiOperation, ApiResponse, ApiBody, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+```
 
 ### CRITICAL: Mandatory Method Logging (AI Assistant Must Enforce)
 
