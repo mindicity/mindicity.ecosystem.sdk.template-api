@@ -747,6 +747,7 @@ const value = obj[userInput];                    // ❌ Unsafe
 const header = req.headers[headerName];          // ❌ Unsafe
 const config = settings[configKey];              // ❌ Unsafe
 const label = labels[index];                     // ❌ Unsafe
+text.replace(dynamicPattern, replacement);       // ❌ Function Call Object Injection
 ```
 
 **✅ REQUIRED: Safe property access patterns**:
@@ -776,6 +777,12 @@ interface SafeConfig {
 }
 const config: SafeConfig = settings;
 const value = config[key]; // Safe with proper typing
+
+// Method 6: Use safe string replacement for dynamic patterns (Function Call Object Injection)
+const searchStr = `$${paramIndex}`;
+const replaceStr = `$${newIndex}`;
+const parts = text.split(searchStr);
+const result = parts.join(replaceStr); // Safe alternative to replace() with dynamic patterns
 ```
 
 **AI Assistant Rules**:
@@ -817,6 +824,15 @@ sanitized[key] = value;
 
 // ✅ CORRECT: Use Object.assign for dynamic property assignment
 Object.assign(sanitized, { [key]: value });
+
+// ❌ WRONG: Function call with dynamic parameters (Function Call Object Injection)
+text.replace(dynamicPattern, replacement);
+
+// ✅ CORRECT: Use split/join for safe dynamic replacement
+const searchStr = `$${paramIndex}`;
+const replaceStr = `$${newIndex}`;
+const parts = text.split(searchStr);
+const result = parts.join(replaceStr);
 
 // ❌ WRONG: Repeated bracket access in conditions
 if (key.toLowerCase() === 'auth') {

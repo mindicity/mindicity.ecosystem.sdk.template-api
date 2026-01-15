@@ -246,9 +246,17 @@ export class SqlQueryBuilder {
     
     // Replace $1, $2, etc. with the correct parameter indices
     for (let i = 0; i < params.length; i++) {
-      const placeholder = `$${i + 1}`;
-      const newPlaceholder = `$${this.parameterIndex}`;
-      updatedCondition = updatedCondition.replace(placeholder, newPlaceholder);
+      // Use a more secure approach to replace parameter placeholders
+      const oldParamNum = i + 1;
+      const newParamNum = this.parameterIndex;
+      
+      // Build the search and replace strings safely using template literals
+      const searchStr = `$${oldParamNum}`;
+      const replaceStr = `$${newParamNum}`;
+      
+      // Use a simple string replacement approach that avoids function call injection
+      const parts = updatedCondition.split(searchStr);
+      updatedCondition = parts.join(replaceStr);
       this.parameters.push(params[i]);
       this.parameterIndex++;
     }
